@@ -1,0 +1,1981 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Bé Khám Phá Ngân Hà - Ứng Dụng AI Giáo Dục Mầm Non</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.responsivevoice.org/responsivevoice.js?key=free"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: 'Nunito', system-ui, -apple-system, sans-serif;
+      margin: 0;
+      background-color: #F8F4EC;
+      color: #202E59;
+      overflow-x: hidden;
+      user-select: none;
+    }
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+    .animate-float { animation: floatSlow 3.4s ease-in-out infinite; }
+    .touch-card { touch-action: none; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <div id="app" class="flex-1 flex flex-col"></div>
+
+  <script>
+    (function () {
+      // =========================================================================
+      // 1. DỮ LIỆU CHUẨN (SINGLE SOURCE OF TRUTH)
+      // =========================================================================
+      const TARGET_COLORS = {
+        red: { id: 'red', name: 'Màu đỏ', hex: '#E53935', exampleObj: 'Quả táo màu đỏ', objectType: 'apple' },
+        yellow: { id: 'yellow', name: 'Màu vàng', hex: '#F4C430', exampleObj: 'Ngôi sao màu vàng', objectType: 'star' },
+        blue: { id: 'blue', name: 'Màu xanh dương', hex: '#1976D2', exampleObj: 'Quả bóng màu xanh dương', objectType: 'ball' },
+        green: { id: 'green', name: 'Màu xanh lá cây', hex: '#388E3C', exampleObj: 'Chiếc lá màu xanh lá cây', objectType: 'leaf' },
+        orange: { id: 'orange', name: 'Màu cam', hex: '#F57C00', exampleObj: 'Quả cam màu cam', objectType: 'orange' },
+        purple: { id: 'purple', name: 'Màu tím', hex: '#7B1FA2', exampleObj: 'Chùm nho màu tím', objectType: 'grape' },
+        pink: { id: 'pink', name: 'Màu hồng', hex: '#E91E63', exampleObj: 'Bông hoa màu hồng', objectType: 'flower' },
+        white: { id: 'white', name: 'Màu trắng', hex: '#FFFFFF', border: '#CBD5E1', exampleObj: 'Đám mây màu trắng', objectType: 'cloud' },
+        black: { id: 'black', name: 'Màu đen', hex: '#212121', exampleObj: 'Chiếc ô tô màu đen', objectType: 'car' },
+        brown: { id: 'brown', name: 'Màu nâu', hex: '#795548', exampleObj: 'Quả bóng màu nâu', objectType: 'ball' }
+      };
+
+      const SHAPES_DATA = {
+        circle: { id: 'circle', name: 'Hình tròn', desc: 'Hình tròn có đường bao cong khép kín, lăn được.', exampleObj: 'Quả bóng, chiếc đĩa' },
+        square: { id: 'square', name: 'Hình vuông', desc: 'Hình vuông có bốn cạnh bằng nhau và bốn góc vuông.', exampleObj: 'Chiếc khăn tay, ô cửa sổ' },
+        triangle: { id: 'triangle', name: 'Hình tam giác', desc: 'Hình tam giác có ba cạnh và ba góc nhọn.', exampleObj: 'Mái nhà, lá cờ' },
+        rectangle: { id: 'rectangle', name: 'Hình chữ nhật', desc: 'Hình chữ nhật có hai cạnh dài bằng nhau và hai cạnh ngắn bằng nhau.', exampleObj: 'Quyển sách, chiếc bảng' }
+      };
+
+      const SOLIDS_DATA = {
+        sphere: { id: 'sphere', name: 'Khối cầu', desc: 'Khối cầu tròn đều mọi phía và lăn được về mọi hướng.', realName: 'Quả bóng tròn', realType: 'ball' },
+        cylinder: { id: 'cylinder', name: 'Khối trụ', desc: 'Khối trụ có hai mặt đáy là hình tròn và lăn được khi nằm ngang.', realName: 'Lon nước ngọt', realType: 'can' },
+        cube: { id: 'cube', name: 'Khối vuông', desc: 'Khối vuông có sáu mặt đều là hình vuông bằng nhau, xếp chồng được.', realName: 'Khối Rubik vuông', realType: 'rubik' },
+        cuboid: { id: 'cuboid', name: 'Khối chữ nhật', desc: 'Khối chữ nhật có sáu mặt đều là hình chữ nhật, xếp chồng được.', realName: 'Hộp quà chữ nhật', realType: 'giftbox' }
+      };
+
+      const AGE_GROUPS = [
+        { id: '2yo', title: 'Nhà trẻ 2 tuổi', subtitle: '24 – 36 tháng tuổi', badge: '24 – 36 tháng', bg: '#E8F5E9', accent: '#2E7D32' },
+        { id: '3yo', title: 'Mẫu giáo 3 tuổi', subtitle: '3 – 4 tuổi', badge: 'Lớp Mầm', bg: '#E3F2FD', accent: '#1565C0' },
+        { id: '4yo', title: 'Mẫu giáo 4 tuổi', subtitle: '4 – 5 tuổi', badge: 'Lớp Chồi', bg: '#FFF8E1', accent: '#EF6C00' },
+        { id: '5yo', title: 'Mẫu giáo 5 tuổi', subtitle: '5 – 6 tuổi', badge: 'Lớp Lá', bg: '#F3E5F5', accent: '#6A1B9A' }
+      ];
+
+      const PLANETS = [
+        { id: 'colors', title: 'Hành tinh Sắc Màu', subtitle: 'Nhận biết và phân biệt màu sắc', color: '#E53935', ring: '#F8D375' },
+        { id: 'shapes', title: 'Hành tinh Hình Dạng', subtitle: 'Khám phá hình tròn, vuông, tam giác, chữ nhật', color: '#1976D2', ring: '#A8D6E8' },
+        { id: 'numbers', title: 'Hành tinh Con Số', subtitle: 'Số lượng, đếm sao và chữ số', color: '#F4C430', ring: '#F5C6D9' },
+        { id: 'solids', title: 'Hành tinh Khối Hình', subtitle: 'Khối cầu, khối trụ, khối vuông, khối chữ nhật', color: '#7B1FA2', ring: '#A8D6E8' }
+      ];
+
+      const GAMES_LIST = [
+        { id: 'tap', title: '1. Chạm đúng nào' },
+        { id: 'drag', title: '2. Kéo thả thông minh' },
+        { id: 'match', title: '3. Tìm đôi bạn thân' },
+        { id: 'countStars', title: '4. Đếm sao ngân hà' },
+        { id: 'sort', title: '5. Phân loại tài giỏi' },
+        { id: 'challenge', title: '6. Thử thách ngân hà' }
+      ];
+
+      const PRAISES = ['Giỏi lắm!', 'Bé làm tốt rồi!', 'Tuyệt vời!', 'Hoan hô phi hành gia nhí!'];
+      const ENCOURAGES = ['Con thử lại nhé!', 'Mình cùng nhìn kỹ nào!', 'Bé hãy nghe lại câu hỏi nhé!'];
+
+      function colorLabelForAge(colorId, age) {
+        if (age === '2yo' && colorId === 'blue') return 'Màu xanh';
+        return (TARGET_COLORS[colorId] && TARGET_COLORS[colorId].name) || 'Màu đỏ';
+      }
+
+      // =========================================================================
+      // 2. BỘ MÁY GIỌNG ĐỌC TIẾNG VIỆT MIỀN NAM ĐA TẦNG (CHUẨN HTTPS GITHUB PAGES)
+      // =========================================================================
+      const VoiceEngine = {
+        enabled: true,
+        rate: 0.9,
+        speaking: false,
+        currentAudio: null,
+        sessionId: 0,
+        viVoice: null,
+        unlocked: false,
+
+        init() {
+          if ('speechSynthesis' in window) {
+            const pickVoice = () => {
+              const voices = window.speechSynthesis.getVoices();
+              if (!voices.length) return;
+              this.viVoice =
+                voices.find(v => v.lang.toLowerCase().includes('vi') && /linh|hoaimy|southern|nam|female/i.test(v.name)) ||
+                voices.find(v => v.lang.toLowerCase().includes('vi-vn')) ||
+                voices.find(v => v.lang.toLowerCase().startsWith('vi')) ||
+                null;
+            };
+            pickVoice();
+            window.speechSynthesis.onvoiceschanged = pickVoice;
+          }
+
+          // Mở khóa chính sách Autoplay Audio trên trình duyệt máy tính ngay cú chạm/click đầu tiên
+          const unlockAudio = () => {
+            if (this.unlocked) return;
+            this.unlocked = true;
+            try {
+              const silent = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+              silent.play().catch(() => {});
+            } catch (e) {}
+            if (window.audioCtx && window.audioCtx.state === 'suspended') {
+              window.audioCtx.resume().catch(() => {});
+            }
+          };
+          document.addEventListener('pointerdown', unlockAudio, { passive: true });
+          document.addEventListener('click', unlockAudio, { passive: true });
+        },
+
+        stop() {
+          this.sessionId++;
+          this.speaking = false;
+          if ('speechSynthesis' in window) {
+            try { window.speechSynthesis.cancel(); } catch (e) {}
+          }
+          if (this.currentAudio) {
+            try {
+              this.currentAudio.pause();
+              this.currentAudio.removeAttribute('src');
+              this.currentAudio.load();
+            } catch (e) {}
+            this.currentAudio = null;
+          }
+          if (window.responsiveVoice && window.responsiveVoice.isPlaying()) {
+            try { window.responsiveVoice.cancel(); } catch (e) {}
+          }
+        },
+
+        // Đọc hết toàn bộ câu và gọi onComplete sau khi đọc xong hoàn chỉnh
+        speak(text, onComplete) {
+          this.stop();
+          const done = () => {
+            this.speaking = false;
+            if (typeof onComplete === 'function') onComplete();
+          };
+          if (!this.enabled || !text) {
+            if (typeof onComplete === 'function') setTimeout(done, 1100);
+            return;
+          }
+          const sid = this.sessionId;
+          this.speaking = true;
+
+          const wordsCount = text.trim().split(/\s+/).length;
+          const minDurationMs = Math.max(1500, wordsCount * 380);
+          const startTime = Date.now();
+          let finished = false;
+          const finishOnce = () => {
+            if (finished || sid !== this.sessionId) return;
+            finished = true;
+            const elapsed = Date.now() - startTime;
+            const waitMore = Math.max(250, minDurationMs - elapsed);
+            setTimeout(() => {
+              if (sid === this.sessionId) done();
+            }, waitMore);
+          };
+
+          // Tầng 1: Web Speech API tiếng Việt (nếu máy tính có cài giọng vi-VN)
+          if ('speechSynthesis' in window && this.viVoice) {
+            try {
+              const utter = new SpeechSynthesisUtterance(text);
+              utter.lang = 'vi-VN';
+              utter.voice = this.viVoice;
+              utter.rate = this.rate;
+              utter.pitch = 1.08;
+              let started = false;
+              utter.onstart = () => { started = true; };
+              utter.onend = () => finishOnce();
+              utter.onerror = () => {
+                if (sid === this.sessionId && !finished) this.playOnlineTTS(text, sid, finishOnce);
+              };
+              window.speechSynthesis.speak(utter);
+              setTimeout(() => {
+                if (sid === this.sessionId && !started && !finished) {
+                  try { window.speechSynthesis.cancel(); } catch (e) {}
+                  this.playOnlineTTS(text, sid, finishOnce);
+                }
+              }, 600);
+              return;
+            } catch (e) {}
+          }
+
+          // Tầng 2: Luồng TTS trực tuyến tương thích HTTPS GitHub Pages (không gửi Referrer)
+          this.playOnlineTTS(text, sid, finishOnce);
+        },
+
+        playOnlineTTS(text, sid, onDone) {
+          if (sid !== this.sessionId) return;
+          const chunks = text.match(/[^.!?]+[.!?]*/g) || [text];
+          let idx = 0;
+
+          const playNextChunk = () => {
+            if (sid !== this.sessionId) return;
+            if (idx >= chunks.length) {
+              if (onDone) onDone();
+              return;
+            }
+            const part = chunks[idx].trim();
+            idx++;
+            if (!part) { playNextChunk(); return; }
+
+            const encoded = encodeURIComponent(part);
+            const sources = [
+              `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=vi&client=tw-ob`,
+              `https://translate.googleapis.com/translate_tts?ie=UTF-8&q=${encoded}&tl=vi&client=gtx`,
+              `https://api.streamelements.com/kappa/v2/speech?voice=vi-VN-Standard-A&text=${encoded}`
+            ];
+
+            let srcIdx = 0;
+            const tryPlaySource = () => {
+              if (sid !== this.sessionId) return;
+              if (srcIdx >= sources.length) {
+                if (window.responsiveVoice) {
+                  window.responsiveVoice.speak(part, 'Vietnamese Female', {
+                    rate: this.rate,
+                    onend: playNextChunk,
+                    onerror: playNextChunk
+                  });
+                } else {
+                  playNextChunk();
+                }
+                return;
+              }
+
+              const audio = new Audio();
+              // Ẩn Referer của GitHub Pages để máy chủ TTS không chặn yêu cầu trên trình duyệt máy tính
+              audio.referrerPolicy = 'no-referrer';
+              audio.preload = 'auto';
+              audio.src = sources[srcIdx];
+              audio.playbackRate = Math.min(1.15, Math.max(0.82, this.rate + 0.05));
+              this.currentAudio = audio;
+              srcIdx++;
+
+              let movedNext = false;
+              const nextSrcOrChunk = (isSuccess) => {
+                if (movedNext || sid !== this.sessionId) return;
+                movedNext = true;
+                if (isSuccess) playNextChunk();
+                else tryPlaySource();
+              };
+
+              audio.onended = () => nextSrcOrChunk(true);
+              audio.onerror = () => nextSrcOrChunk(false);
+
+              const playPromise = audio.play();
+              if (playPromise && typeof playPromise.catch === 'function') {
+                playPromise.catch(() => nextSrcOrChunk(false));
+              }
+            };
+
+            tryPlaySource();
+          };
+
+          playNextChunk();
+        }
+      };
+
+      // =========================================================================
+      // 3. THƯ VIỆN ĐỒ HỌA SVG 3D CHÂN THẬT KHỚP 100% CÂU HỎI & VẬT CHỨA
+      // =========================================================================
+      function renderBeSao(mood = 'welcome', size = 104) {
+        const arms = mood === 'happy'
+          ? `<path d="M42 96 Q22 74 28 62" fill="none" stroke="#FFFFFF" stroke-width="11" stroke-linecap="round"/>
+             <path d="M98 96 Q118 74 112 62" fill="none" stroke="#FFFFFF" stroke-width="11" stroke-linecap="round"/>`
+          : `<path d="M42 98 Q26 108 30 116" fill="none" stroke="#FFFFFF" stroke-width="11" stroke-linecap="round"/>
+             <path d="M98 96 Q118 86 122 78" fill="none" stroke="#FFFFFF" stroke-width="11" stroke-linecap="round"/>`;
+        const eyes = mood === 'happy'
+          ? `<path d="M58 53 Q62 48 66 53" fill="none" stroke="#202E59" stroke-width="3" stroke-linecap="round"/>
+             <path d="M74 53 Q78 48 82 53" fill="none" stroke="#202E59" stroke-width="3" stroke-linecap="round"/>`
+          : `<circle cx="62" cy="53" r="3.5" fill="#202E59"/><circle cx="78" cy="53" r="3.5" fill="#202E59"/>
+             <circle cx="63" cy="52" r="1.2" fill="#FFF"/><circle cx="79" cy="52" r="1.2" fill="#FFF"/>`;
+        const mouth = mood === 'happy'
+          ? `<path d="M63 62 Q70 71 77 62 Z" fill="#E53935"/>`
+          : `<path d="M64 62 Q70 68 76 62" fill="none" stroke="#202E59" stroke-width="2.8" stroke-linecap="round"/>`;
+
+        return `
+          <svg width="${size}" height="${size}" viewBox="0 0 140 140" class="select-none shrink-0">
+            <circle cx="70" cy="70" r="62" fill="#F8D375" fill-opacity="0.2"/>
+            <line x1="70" y1="22" x2="70" y2="10" stroke="#F8D375" stroke-width="4" stroke-linecap="round"/>
+            <polygon points="70,2 73,9 80,9 74,13 76,20 70,16 64,20 66,13 60,9 67,9" fill="#F8D375"/>
+            <rect x="42" y="88" width="56" height="36" rx="18" fill="#FFFFFF" stroke="#6C6AA7" stroke-width="3"/>
+            <rect x="56" y="96" width="28" height="14" rx="5" fill="#A8D6E8"/>
+            <circle cx="63" cy="103" r="3" fill="#E53935"/><circle cx="77" cy="103" r="3" fill="#388E3C"/>
+            ${arms}
+            <circle cx="70" cy="56" r="36" fill="#FFFFFF" stroke="#6C6AA7" stroke-width="3.5"/>
+            <rect x="42" y="34" width="56" height="42" rx="20" fill="#202E59"/>
+            <circle cx="70" cy="56" r="22" fill="#FFE0B2"/>
+            ${eyes}
+            <ellipse cx="56" cy="60" rx="4" ry="2.5" fill="#F5C6D9"/><ellipse cx="84" cy="60" rx="4" ry="2.5" fill="#F5C6D9"/>
+            ${mouth}
+            <path d="M49 42 Q54 37 62 37" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+          </svg>`;
+      }
+
+      function renderObjectSVG(objectType, colorId = 'red', size = 104) {
+        const col = TARGET_COLORS[colorId] || TARGET_COLORS.red;
+        const fill = col.hex;
+        const stroke = col.border || '#1E293B';
+        const uid = `${objectType}_${colorId}_${Math.floor(Math.random() * 100000)}`;
+
+        if (objectType === 'star') {
+          return `
+            <svg width="${size}" height="${size}" viewBox="0 0 110 110">
+              <defs>
+                <radialGradient id="sg_${uid}" cx="35%" cy="30%" r="70%">
+                  <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.55"/>
+                  <stop offset="40%" stop-color="${fill}"/>
+                  <stop offset="100%" stop-color="${fill}"/>
+                </radialGradient>
+              </defs>
+              <ellipse cx="55" cy="98" rx="26" ry="5" fill="#000" opacity="0.12"/>
+              <polygon points="55,10 68,38 98,42 76,63 82,93 55,78 28,93 34,63 12,42 42,38"
+                fill="url(#sg_${uid})" stroke="${stroke}" stroke-width="2.5" stroke-linejoin="round"/>
+              <circle cx="48" cy="52" r="2.5" fill="${colorId === 'black' ? '#FFF' : '#202E59'}"/>
+              <circle cx="62" cy="52" r="2.5" fill="${colorId === 'black' ? '#FFF' : '#202E59'}"/>
+              <path d="M50 60 Q55 65 60 60" fill="none" stroke="${colorId === 'black' ? '#FFF' : '#202E59'}" stroke-width="2.2" stroke-linecap="round"/>
+            </svg>`;
+        }
+
+        if (objectType === 'ball') {
+          return `
+            <svg width="${size}" height="${size}" viewBox="0 0 110 110">
+              <defs>
+                <radialGradient id="bg_${uid}" cx="32%" cy="28%" r="68%">
+                  <stop offset="0%" stop-color="#FFFFFF" stop-opacity="${colorId === 'white' ? '0.9' : '0.55'}"/>
+                  <stop offset="45%" stop-color="${fill}"/>
+                  <stop offset="100%" stop-color="${fill}"/>
+                </radialGradient>
+              </defs>
+              <ellipse cx="55" cy="99" rx="30" ry="6" fill="#000" opacity="0.14"/>
+              <circle cx="55" cy="54" r="38" fill="url(#bg_${uid})" stroke="${stroke}" stroke-width="2.5"/>
+              <path d="M24 38 Q55 58 86 38" fill="none" stroke="#FFFFFF" stroke-width="3.5" opacity="0.65"/>
+              <path d="M24 70 Q55 50 86 70" fill="none" stroke="#FFFFFF" stroke-width="3.5" opacity="0.65"/>
+              <ellipse cx="40" cy="34" rx="10" ry="5" transform="rotate(-25 40 34)" fill="#FFFFFF" opacity="0.6"/>
+            </svg>`;
+        }
+
+        if (objectType === 'apple') {
+          return `
+            <svg width="${size}" height="${size}" viewBox="0 0 110 110">
+              <ellipse cx="55" cy="99" rx="28" ry="5.5" fill="#000" opacity="0.14"/>
+              <path d="M55 26 Q57 12 66 10" fill="none" stroke="#5D4037" stroke-width="4.5" stroke-linecap="round"/>
+              <ellipse cx="67" cy="18" rx="11" ry="5.5" transform="rotate(-22 67 18)" fill="#43A047" stroke="#1B5E20" stroke-width="1.5"/>
+              <path d="M55 30 C35 20, 18 36, 22 62 C25 84, 42 94, 55 89 C68 94, 85 84, 88 62 C92 36, 75 20, 55 30 Z"
+                fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>
+              <ellipse cx="38" cy="44" rx="7" ry="13" transform="rotate(-18 38 44)" fill="#FFFFFF" opacity="0.4"/>
+            </svg>`;
+        }
+
+        if (objectType === 'flower') {
+          const petals = [0, 60, 120, 180, 240, 300].map(deg =>
+            `<circle cx="55" cy="27" r="15" fill="${fill}" stroke="${stroke}" stroke-width="2" transform="rotate(${deg} 55 52)"/>`
+          ).join('');
+          return `
+            <svg width="${size}" height="${size}" viewBox="0 0 110 110">
+              <line x1="55" y1="68" x2="55" y2="102" stroke="#2E7D32" stroke-width="5" stroke-linecap="round"/>
+              <ellipse cx="67" cy="86" rx="11" ry="5" transform="rotate(-20 67 86)" fill="#43A047"/>
+              ${petals}
+              <circle cx="55" cy="52" r="14" fill="#F4C430" stroke="#B45309" stroke-width="2"/>
+            </svg>`;
+        }
+
+        if (objectType === 'car') {
+          return `
+            <svg width="${size}" height="${size}" viewBox="0 0 110 110">
+              <ellipse cx="55" cy="92" rx="42" ry="6" fill="#000" opacity="0.14"/>
+              <path d="M26 54 L36 32 L74 32 L84 54 Z" fill="${fill}" stroke="${stroke}" stroke-width="2.5" stroke-linejoin="round"/>
+              <path d="M38 36 L52 36 L52 52 L30 52 Z" fill="#E0F2FE" stroke="#1E293B" stroke-width="1.5"/>
+              <path d="M56 36 L72 36 L80 52 L56 52 Z" fill="#E0F2FE" stroke="#1E293B" stroke-width="1.5"/>
+              <rect x="14" y="52" width="82" height="24" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>
+              <circle cx="32" cy="78" r="11" fill="#1E293B"/><circle cx="32" cy="78" r="5" fill="#CBD5E1"/>
+              <circle cx="78" cy="78" r="11" fill="#1E293B"/><circle cx="78" cy="78" r="5" fill="#CBD5E1"/>
+            </svg>`;
+        }
+
+        if (objectType === 'leaf') {
+          return `
+            <svg width="${size}" height="${size}" viewBox="0 0 110 110">
+              <path d="M22 86 C22 44, 52 20, 88 20 C88 58, 64 88, 22 86 Z" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>
+              <path d="M18 92 Q48 62 84 24" fill="none" stroke="#1B5E20" stroke-width="3" stroke-linecap="round"/>
+            </svg>`;
+        }
+
+        if (objectType === 'orange') {
+          return `
+            <svg width="${size}" height="${size}" viewBox="0 0 110 110">
+              <ellipse cx="55" cy="98" rx="28" ry="5.5" fill="#000" opacity="0.14"/>
+              <circle cx="55" cy="56" r="35" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>
+              <ellipse cx="64" cy="20" rx="11" ry="5" transform="rotate(-18 64 20)" fill="#388E3C"/>
+              <ellipse cx="41" cy="40" rx="8" ry="5" transform="rotate(-25 41 40)" fill="#FFFFFF" opacity="0.45"/>
+            </svg>`;
+        }
+
+        if (objectType === 'grape') {
+          const berries = [
+            [42,38],[55,38],[68,38],
+            [36,52],[49,52],[62,52],[74,52],
+            [43,66],[56,66],[68,66],
+            [49,80],[61,80],
+            [55,92]
+          ].map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="10" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`).join('');
+          return `
+            <svg width="${size}" height="${size}" viewBox="0 0 110 110">
+              <path d="M55 28 L55 14" stroke="#5D4037" stroke-width="4" stroke-linecap="round"/>
+              <ellipse cx="67" cy="20" rx="12" ry="6" fill="#43A047"/>
+              ${berries}
+            </svg>`;
+        }
+
+        if (objectType === 'cloud') {
+          return `
+            <svg width="${size}" height="${size}" viewBox="0 0 110 110">
+              <path d="M28 76 H82 A18 18 0 0 0 84 40 A24 24 0 0 0 38 34 A20 20 0 0 0 28 76 Z"
+                fill="${fill}" stroke="${stroke}" stroke-width="3" stroke-linejoin="round"/>
+            </svg>`;
+        }
+
+        // Các hình phẳng chuẩn hình học
+        if (objectType === 'circle') {
+          return `<svg width="${size}" height="${size}" viewBox="0 0 110 110"><circle cx="55" cy="55" r="38" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/><ellipse cx="41" cy="39" rx="9" ry="5" transform="rotate(-25 41 39)" fill="#FFF" opacity="0.4"/></svg>`;
+        }
+        if (objectType === 'square') {
+          return `<svg width="${size}" height="${size}" viewBox="0 0 110 110"><rect x="19" y="19" width="72" height="72" rx="4" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/></svg>`;
+        }
+        if (objectType === 'triangle') {
+          return `<svg width="${size}" height="${size}" viewBox="0 0 110 110"><polygon points="55,15 95,88 15,88" fill="${fill}" stroke="${stroke}" stroke-width="2.5" stroke-linejoin="round"/></svg>`;
+        }
+        if (objectType === 'rectangle') {
+          return `<svg width="${size}" height="${size}" viewBox="0 0 110 110"><rect x="11" y="29" width="88" height="52" rx="4" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/></svg>`;
+        }
+
+        return renderObjectSVG('star', colorId, size);
+      }
+
+      function renderSolid3DSVG(solidId, size = 110, rotX = 18, rotY = -24) {
+        const skew = Math.sin((rotY * Math.PI) / 180) * 14;
+        const tilt = Math.sin((rotX * Math.PI) / 180) * 10;
+
+        if (solidId === 'sphere') {
+          return `
+            <svg width="${size}" height="${size}" viewBox="0 0 120 120">
+              <defs>
+                <radialGradient id="sp3d" cx="35%" cy="30%" r="65%">
+                  <stop offset="0%" stop-color="#FF8A80"/><stop offset="45%" stop-color="#E53935"/><stop offset="100%" stop-color="#8E0000"/>
+                </radialGradient>
+              </defs>
+              <ellipse cx="60" cy="105" rx="34" ry="7" fill="#000" opacity="0.15"/>
+              <circle cx="60" cy="58" r="42" fill="url(#sp3d)"/>
+              <ellipse cx="60" cy="58" rx="${Math.max(8, Math.abs(Math.cos((rotY * Math.PI) / 180) * 38))}" ry="42" fill="none" stroke="#FFF" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.45"/>
+              <ellipse cx="45" cy="40" rx="11" ry="6" transform="rotate(-25 45 40)" fill="#FFF" opacity="0.55"/>
+            </svg>`;
+        }
+        if (solidId === 'cylinder') {
+          return `
+            <svg width="${size}" height="${size}" viewBox="0 0 120 120">
+              <defs>
+                <linearGradient id="cy3d" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#1565C0"/><stop offset="35%" stop-color="#42A5F5"/><stop offset="100%" stop-color="#0D47A1"/>
+                </linearGradient>
+              </defs>
+              <ellipse cx="60" cy="106" rx="34" ry="7" fill="#000" opacity="0.15"/>
+              <path d="M 30 32 L 30 90 A 30 ${11 + Math.abs(tilt) * 0.4} 0 0 0 90 90 L 90 32 Z" fill="url(#cy3d)"/>
+              <ellipse cx="60" cy="90" rx="30" ry="${11 + Math.abs(tilt) * 0.4}" fill="none" stroke="#BBDEFB" stroke-width="1.5" stroke-dasharray="4 3"/>
+              <ellipse cx="60" cy="32" rx="30" ry="${11 + Math.abs(tilt) * 0.4}" fill="#90CAF9" stroke="#0D47A1" stroke-width="2"/>
+            </svg>`;
+        }
+        if (solidId === 'cube') {
+          return `
+            <svg width="${size}" height="${size}" viewBox="0 0 120 120">
+              <g transform="translate(${skew * 0.25}, 0)">
+                <polygon points="32,104 76,104 94,94 50,94" fill="#000" opacity="0.14"/>
+                <polygon points="30,38 52,20 96,20 74,38" fill="#FFF176" stroke="#F57F17" stroke-width="2" stroke-linejoin="round"/>
+                <rect x="30" y="38" width="44" height="44" fill="#F4C430" stroke="#F57F17" stroke-width="2"/>
+                <polygon points="74,38 96,20 96,64 74,82" fill="#FBC02D" stroke="#F57F17" stroke-width="2" stroke-linejoin="round"/>
+              </g>
+            </svg>`;
+        }
+        return `
+          <svg width="${size}" height="${size}" viewBox="0 0 120 120">
+            <g transform="translate(${skew * 0.25}, 0)">
+              <polygon points="20,104 82,104 102,92 40,92" fill="#000" opacity="0.14"/>
+              <polygon points="20,46 42,30 102,30 80,46" fill="#A5D6A7" stroke="#1B5E20" stroke-width="2" stroke-linejoin="round"/>
+              <rect x="20" y="46" width="60" height="38" fill="#43A047" stroke="#1B5E20" stroke-width="2"/>
+              <polygon points="80,46 102,30 102,68 80,84" fill="#2E7D32" stroke="#1B5E20" stroke-width="2" stroke-linejoin="round"/>
+            </g>
+          </svg>`;
+      }
+
+      function renderRealObjectSVG(realType, size = 104) {
+        if (realType === 'ball') return renderObjectSVG('ball', 'orange', size);
+        if (realType === 'can') {
+          return `
+            <svg width="${size}" height="${size}" viewBox="0 0 100 100">
+              <rect x="30" y="22" width="40" height="58" rx="6" fill="#29B6F6" stroke="#01579B" stroke-width="2.5"/>
+              <ellipse cx="50" cy="22" rx="20" ry="6" fill="#E1F5FE" stroke="#01579B" stroke-width="2"/>
+              <rect x="30" y="42" width="40" height="16" fill="#F4C430"/>
+            </svg>`;
+        }
+        if (realType === 'rubik') {
+          return `
+            <svg width="${size}" height="${size}" viewBox="0 0 100 100">
+              <rect x="22" y="22" width="56" height="56" rx="4" fill="#FFF" stroke="#212121" stroke-width="3"/>
+              <rect x="25" y="25" width="24" height="24" fill="#E53935"/>
+              <rect x="51" y="25" width="24" height="24" fill="#1976D2"/>
+              <rect x="25" y="51" width="24" height="24" fill="#F4C430"/>
+              <rect x="51" y="51" width="24" height="24" fill="#388E3C"/>
+            </svg>`;
+        }
+        return `
+          <svg width="${size}" height="${size}" viewBox="0 0 100 100">
+            <rect x="14" y="34" width="72" height="44" rx="4" fill="#AB47BC" stroke="#4A148C" stroke-width="2.5"/>
+            <rect x="10" y="26" width="80" height="12" rx="3" fill="#CE93D8" stroke="#4A148C" stroke-width="2"/>
+            <rect x="44" y="26" width="12" height="52" fill="#F8D375"/>
+          </svg>`;
+      }
+
+      function renderContainerSVG(containerType, opt, isDone, size = 128) {
+        const col = TARGET_COLORS[opt.colorId || 'red'] || TARGET_COLORS.red;
+        const fill = col.hex;
+        const stroke = col.border || '#1E293B';
+
+        if (containerType === 'basket') {
+          return `
+            <svg width="${size}" height="${size}" viewBox="0 0 130 120">
+              <path d="M 35 46 Q 65 10 95 46" fill="none" stroke="${stroke}" stroke-width="6" stroke-linecap="round"/>
+              <path d="M 22 48 L 108 48 L 96 104 C 95 108 91 110 86 110 L 44 110 C 39 110 35 108 34 104 Z"
+                fill="${fill}" stroke="${stroke}" stroke-width="3" stroke-linejoin="round"/>
+              <rect x="18" y="42" width="94" height="11" rx="5" fill="#F8D375" stroke="${stroke}" stroke-width="2.5"/>
+              <line x1="42" y1="53" x2="46" y2="108" stroke="#FFF" stroke-width="2" opacity="0.45"/>
+              <line x1="65" y1="53" x2="65" y2="108" stroke="#FFF" stroke-width="2" opacity="0.45"/>
+              <line x1="88" y1="53" x2="84" y2="108" stroke="#FFF" stroke-width="2" opacity="0.45"/>
+              ${isDone ? `<circle cx="102" cy="24" r="14" fill="#388E3C"/><path d="M96 24 L100 28 L109 19" fill="none" stroke="#FFF" stroke-width="3" stroke-linecap="round"/>` : ''}
+            </svg>`;
+        }
+        // Ngôi nhà mái màu đồng bộ 100% với màu của đồ vật kéo vào, và khung cửa chứa đúng hình có màu tương ứng
+        const doorShape = opt.objectType || opt.shapeId || 'circle';
+        let windowShape = `<circle cx="65" cy="80" r="16" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>`;
+        if (doorShape === 'square' || opt.solidId === 'cube') {
+          windowShape = `<rect x="49" y="64" width="32" height="32" rx="3" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>`;
+        } else if (doorShape === 'triangle') {
+          windowShape = `<polygon points="65,61 83,93 47,93" fill="${fill}" stroke="${stroke}" stroke-width="2.5" stroke-linejoin="round"/>`;
+        } else if (doorShape === 'rectangle' || opt.solidId === 'cuboid') {
+          windowShape = `<rect x="44" y="68" width="42" height="24" rx="3" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>`;
+        }
+
+        return `
+          <svg width="${size}" height="${size}" viewBox="0 0 130 120">
+            <rect x="28" y="52" width="74" height="58" rx="4" fill="#FFFDF9" stroke="${stroke}" stroke-width="3"/>
+            <polygon points="16,55 65,14 114,55" fill="${fill}" stroke="${stroke}" stroke-width="3" stroke-linejoin="round"/>
+            ${windowShape}
+            ${isDone ? `<circle cx="104" cy="24" r="14" fill="#388E3C"/><path d="M98 24 L102 28 L111 19" fill="none" stroke="#FFF" stroke-width="3" stroke-linecap="round"/>` : ''}
+          </svg>`;
+      }
+
+      function renderOptionVisual(opt, size = 100) {
+        if (opt.kind === 'object') {
+          return renderObjectSVG(opt.objectType || 'star', opt.colorId || 'red', size);
+        }
+        if (opt.kind === 'numberGroup') {
+          const count = opt.count || 1;
+          const cols = count <= 2 ? count : count <= 4 ? 2 : count <= 6 ? 3 : 5;
+          const starSize = count > 5 ? 24 : 32;
+          let starsHtml = '';
+          for (let i = 0; i < count; i++) {
+            starsHtml += renderObjectSVG(opt.objectType || 'star', opt.colorId || 'yellow', starSize);
+          }
+          return `<div class="grid gap-1.5 place-items-center p-2" style="grid-template-columns: repeat(${cols}, minmax(0, 1fr))">${starsHtml}</div>`;
+        }
+        if (opt.kind === 'digit') {
+          return `<div class="w-20 h-20 rounded-2xl bg-[#202E59] text-[#F8D375] flex items-center justify-center text-5xl font-black shadow-inner">${opt.count}</div>`;
+        }
+        if (opt.kind === 'solid') {
+          return renderSolid3DSVG(opt.solidId || 'sphere', size);
+        }
+        if (opt.kind === 'realObject') {
+          return renderRealObjectSVG(opt.realType || 'ball', size);
+        }
+        return renderObjectSVG('star', 'yellow', size);
+      }
+
+      // =========================================================================
+      // 4. NGÂN HÀNG HỌC LIỆU NỀN KHỚP TUYỆT ĐỐI CÂU HỎI – HÌNH ẢNH – NHÃN MÀU
+      // =========================================================================
+      function buildDefaultBank() {
+        const bank = [];
+
+        // --- NHÓM A: NHÀ TRẺ 2 TUỔI (24 - 36 THÁNG) ---
+        // Nhãn dưới hình ảnh thống nhất chỉ ghi tên màu (VD: "Màu đỏ", "Màu vàng", "Màu xanh")
+        const c2Pairs = [
+          { ids: ['red', 'blue'], obj: 'star', objName: 'ngôi sao' },
+          { ids: ['yellow', 'red'], obj: 'ball', objName: 'quả bóng' },
+          { ids: ['blue', 'yellow'], obj: 'apple', objName: 'quả táo' },
+          { ids: ['red', 'yellow'], obj: 'flower', objName: 'bông hoa' },
+          { ids: ['yellow', 'blue'], obj: 'car', objName: 'chiếc ô tô' },
+          { ids: ['blue', 'red'], obj: 'star', objName: 'ngôi sao' },
+          { ids: ['red', 'yellow', 'blue'], obj: 'ball', objName: 'quả bóng' },
+          { ids: ['yellow', 'red', 'blue'], obj: 'star', objName: 'ngôi sao' },
+          { ids: ['blue', 'red', 'yellow'], obj: 'apple', objName: 'quả táo' },
+          { ids: ['red', 'blue', 'yellow'], obj: 'flower', objName: 'bông hoa' }
+        ];
+        c2Pairs.forEach((item, idx) => {
+          const targetId = item.ids[0];
+          const cLabel = colorLabelForAge(targetId, '2yo').toLowerCase();
+          bank.push({
+            id: `2yo_c_${idx}`,
+            age: '2yo',
+            planet: 'colors',
+            containerType: 'basket',
+            promptText: `Bé hãy tìm ${item.objName} ${cLabel} nhé!`,
+            hintText: `Con nhìn xem, đâu là ${item.objName} ${cLabel}?`,
+            targetKey: `c_${targetId}`,
+            options: item.ids.map(cid => ({
+              key: `c_${cid}`,
+              label: colorLabelForAge(cid, '2yo'),
+              kind: 'object',
+              objectType: item.obj,
+              colorId: cid,
+              groupId: cid
+            }))
+          });
+        });
+
+        // A2. Hình dạng (Hình tròn, Hình vuông)
+        const s2Pairs = [
+          ['circle', 'square'], ['square', 'circle'], ['circle', 'square'], ['square', 'circle'],
+          ['circle', 'square'], ['square', 'circle'], ['circle', 'square'], ['square', 'circle']
+        ];
+        s2Pairs.forEach((pair, idx) => {
+          const t = pair[0];
+          const cols = ['red', 'yellow', 'blue'];
+          bank.push({
+            id: `2yo_s_${idx}`,
+            age: '2yo',
+            planet: 'shapes',
+            containerType: 'house',
+            promptText: `Bé tìm ${SHAPES_DATA[t].name.toLowerCase()} nào!`,
+            hintText: SHAPES_DATA[t].desc,
+            targetKey: `s_${t}`,
+            options: [
+              { key: `s_${pair[0]}`, label: SHAPES_DATA[pair[0]].name, kind: 'object', objectType: pair[0], colorId: cols[idx % 3], groupId: pair[0] },
+              { key: `s_${pair[1]}`, label: SHAPES_DATA[pair[1]].name, kind: 'object', objectType: pair[1], colorId: cols[(idx + 1) % 3], groupId: pair[1] }
+            ]
+          });
+        });
+
+        // A3. Số lượng Một – Nhiều (khớp 100% đồ vật được gọi tên)
+        const n2Items = [
+          { target: 'one', obj: 'star', objName: 'ngôi sao', color: 'yellow', many: 4, prompt: 'Bé chỉ cho cô giỏ có một ngôi sao!' },
+          { target: 'many', obj: 'star', objName: 'ngôi sao', color: 'yellow', many: 5, prompt: 'Đâu là giỏ có nhiều ngôi sao?' },
+          { target: 'one', obj: 'apple', objName: 'quả táo', color: 'red', many: 5, prompt: 'Con chọn nhóm có một quả táo nhé!' },
+          { target: 'many', obj: 'apple', objName: 'quả táo', color: 'red', many: 4, prompt: 'Bé tìm nhóm có nhiều quả táo nào!' },
+          { target: 'one', obj: 'flower', objName: 'bông hoa', color: 'pink', many: 5, prompt: 'Bé tìm giúp Bé Sao một bông hoa!' },
+          { target: 'many', obj: 'ball', objName: 'quả bóng', color: 'blue', many: 4, prompt: 'Nhóm nào có nhiều quả bóng vậy bé?' }
+        ];
+        n2Items.forEach((it, idx) => {
+          bank.push({
+            id: `2yo_n_${idx}`,
+            age: '2yo',
+            planet: 'numbers',
+            containerType: 'basket',
+            promptText: it.prompt,
+            hintText: it.target === 'one' ? `Chỉ có đúng một ${it.objName} đứng một mình thôi con!` : `Nhóm nào có rất nhiều ${it.objName} cùng nhau nhỉ?`,
+            targetKey: it.target === 'one' ? 'g_one' : 'g_many',
+            options: [
+              { key: 'g_one', label: 'Một', kind: 'numberGroup', count: 1, objectType: it.obj, colorId: it.color, groupId: 'one' },
+              { key: 'g_many', label: 'Nhiều', kind: 'numberGroup', count: it.many, objectType: it.obj, colorId: it.color, groupId: 'many' }
+            ]
+          });
+        });
+
+        [2, 3, 4, 5].forEach((n, idx) => {
+          const dist = n === 2 ? 4 : n - 1;
+          bank.push({
+            id: `2yo_next_${idx}`,
+            age: '2yo',
+            planet: 'numbers',
+            containerType: 'basket',
+            isExtended: true,
+            promptText: `Bé tìm nhóm có ${n} ngôi sao nhé!`,
+            hintText: `Mình cùng chỉ tay đếm từng ngôi sao đến ${n} nào!`,
+            targetKey: `cnt_${n}`,
+            options: [
+              { key: `cnt_${n}`, label: `${n} ngôi sao`, kind: 'numberGroup', count: n, objectType: 'star', colorId: 'yellow' },
+              { key: `cnt_${dist}`, label: `${dist} ngôi sao`, kind: 'numberGroup', count: dist, objectType: 'star', colorId: 'yellow' }
+            ]
+          });
+        });
+
+        // --- NHÓM B: MẪU GIÁO 3 TUỔI (NHÃN THỐNG NHẤT CHỈ GHI TÊN MÀU) ---
+        const c3List = ['red', 'yellow', 'blue', 'green', 'orange', 'purple', 'pink', 'white', 'black', 'brown'];
+        c3List.forEach((cid, idx) => {
+          const others = c3List.filter(c => c !== cid);
+          const d1 = others[idx % others.length];
+          const d2 = others[(idx + 3) % others.length];
+          const def = TARGET_COLORS[cid];
+          bank.push({
+            id: `3yo_c_${idx}`,
+            age: '3yo',
+            planet: 'colors',
+            containerType: 'basket',
+            isExtended: cid === 'brown',
+            promptText: `Bé hãy chọn ${def.exampleObj.toLowerCase()} nhé!`,
+            hintText: `Con nhìn xem đồ vật nào có ${def.name.toLowerCase()}?`,
+            targetKey: `c_${cid}`,
+            options: [
+              { key: `c_${cid}`, label: TARGET_COLORS[cid].name, kind: 'object', objectType: TARGET_COLORS[cid].objectType, colorId: cid, groupId: cid },
+              { key: `c_${d1}`, label: TARGET_COLORS[d1].name, kind: 'object', objectType: TARGET_COLORS[d1].objectType, colorId: d1, groupId: d1 },
+              { key: `c_${d2}`, label: TARGET_COLORS[d2].name, kind: 'object', objectType: TARGET_COLORS[d2].objectType, colorId: d2, groupId: d2 }
+            ]
+          });
+        });
+
+        const s3Keys = ['circle', 'square', 'triangle', 'rectangle'];
+        for (let i = 0; i < 8; i++) {
+          const t = s3Keys[i % 4];
+          const others = s3Keys.filter(s => s !== t);
+          const cols = ['red', 'blue', 'green', 'orange'];
+          bank.push({
+            id: `3yo_s_${i}`,
+            age: '3yo',
+            planet: 'shapes',
+            containerType: 'house',
+            promptText: `Bé hãy tìm ${SHAPES_DATA[t].name.toLowerCase()}!`,
+            hintText: SHAPES_DATA[t].desc,
+            targetKey: `s_${t}`,
+            options: [
+              { key: `s_${t}`, label: SHAPES_DATA[t].name, kind: 'object', objectType: t, colorId: cols[i % 4], groupId: t },
+              { key: `s_${others[0]}`, label: SHAPES_DATA[others[0]].name, kind: 'object', objectType: others[0], colorId: cols[(i + 1) % 4], groupId: others[0] },
+              { key: `s_${others[1]}`, label: SHAPES_DATA[others[1]].name, kind: 'object', objectType: others[1], colorId: cols[(i + 2) % 4], groupId: others[1] }
+            ]
+          });
+        }
+
+        for (let i = 0; i < 10; i++) {
+          const isExt = i >= 6;
+          const cnt = isExt ? (i - 6) + 6 : (i % 5) + 1;
+          const d1 = cnt === 1 ? 2 : cnt - 1;
+          const d2 = cnt >= 9 ? 5 : cnt + 1;
+          bank.push({
+            id: `3yo_n_${i}`,
+            age: '3yo',
+            planet: 'numbers',
+            containerType: 'basket',
+            isExtended: isExt,
+            promptText: `Nhóm nào có ${cnt} ngôi sao vậy bé?`,
+            hintText: `Con hãy đếm từ 1 đến ${cnt} nhé!`,
+            targetKey: `cnt_${cnt}`,
+            options: [
+              { key: `cnt_${cnt}`, label: `${cnt} ngôi sao`, kind: 'numberGroup', count: cnt, objectType: 'star', colorId: 'yellow' },
+              { key: `cnt_${d1}`, label: `${d1} ngôi sao`, kind: 'numberGroup', count: d1, objectType: 'star', colorId: 'yellow' },
+              { key: `cnt_${d2}`, label: `${d2} ngôi sao`, kind: 'numberGroup', count: d2, objectType: 'star', colorId: 'yellow' }
+            ]
+          });
+        }
+
+        // --- NHÓM C & D: MẪU GIÁO 4 & 5 TUỔI ---
+        const combos = [
+          { shape: 'circle', color: 'red' }, { shape: 'square', color: 'blue' },
+          { shape: 'triangle', color: 'yellow' }, { shape: 'rectangle', color: 'green' },
+          { shape: 'circle', color: 'orange' }, { shape: 'triangle', color: 'purple' },
+          { shape: 'square', color: 'pink' }, { shape: 'rectangle', color: 'red' }
+        ];
+        ['4yo', '5yo'].forEach(ageId => {
+          combos.forEach((cb, idx) => {
+            const altC = cb.color === 'red' ? 'blue' : 'red';
+            const altS = cb.shape === 'circle' ? 'square' : 'circle';
+            const lbl = `${SHAPES_DATA[cb.shape].name} ${TARGET_COLORS[cb.color].name.toLowerCase()}`;
+            bank.push({
+              id: `${ageId}_c_${idx}`,
+              age: ageId,
+              planet: 'colors',
+              containerType: 'house',
+              promptText: `Bé tìm ${lbl.toLowerCase()} nhé!`,
+              hintText: `Chú ý cả ${SHAPES_DATA[cb.shape].name.toLowerCase()} và ${TARGET_COLORS[cb.color].name.toLowerCase()} nhé!`,
+              targetKey: `${cb.shape}_${cb.color}`,
+              options: [
+                { key: `${cb.shape}_${cb.color}`, label: lbl, kind: 'object', objectType: cb.shape, colorId: cb.color },
+                { key: `${cb.shape}_${altC}`, label: `${SHAPES_DATA[cb.shape].name} ${TARGET_COLORS[altC].name.toLowerCase()}`, kind: 'object', objectType: cb.shape, colorId: altC },
+                { key: `${altS}_${cb.color}`, label: `${SHAPES_DATA[altS].name} ${TARGET_COLORS[cb.color].name.toLowerCase()}`, kind: 'object', objectType: altS, colorId: cb.color }
+              ]
+            });
+          });
+
+          const sPrompts = [
+            { target: 'triangle', prompt: 'Hình nào có 3 cạnh và 3 góc nhọn?' },
+            { target: 'square', prompt: 'Hình nào có 4 cạnh dài bằng nhau?' },
+            { target: 'rectangle', prompt: 'Hình nào có 2 cạnh dài và 2 cạnh ngắn?' },
+            { target: 'circle', prompt: 'Hình nào có đường bao cong tròn và không có góc?' },
+            { target: 'rectangle', prompt: 'Bé phân biệt hình chữ nhật với hình vuông nhé!' },
+            { target: 'triangle', prompt: 'Bé chọn hình tam giác nào!' }
+          ];
+          sPrompts.forEach((sp, idx) => {
+            const others = s3Keys.filter(s => s !== sp.target);
+            bank.push({
+              id: `${ageId}_s_${idx}`,
+              age: ageId,
+              planet: 'shapes',
+              containerType: 'house',
+              promptText: sp.prompt,
+              hintText: SHAPES_DATA[sp.target].desc,
+              targetKey: `s_${sp.target}`,
+              options: [
+                { key: `s_${sp.target}`, label: SHAPES_DATA[sp.target].name, kind: 'object', objectType: sp.target, colorId: 'blue' },
+                { key: `s_${others[0]}`, label: SHAPES_DATA[others[0]].name, kind: 'object', objectType: others[0], colorId: 'orange' },
+                { key: `s_${others[1]}`, label: SHAPES_DATA[others[1]].name, kind: 'object', objectType: others[1], colorId: 'green' },
+                { key: `s_${others[2]}`, label: SHAPES_DATA[others[2]].name, kind: 'object', objectType: others[2], colorId: 'purple' }
+              ]
+            });
+          });
+
+          for (let n = 1; n <= 10; n++) {
+            const d1 = n === 1 ? 3 : n - 1;
+            const d2 = n === 10 ? 7 : n + 1;
+            bank.push({
+              id: `${ageId}_n_${n}`,
+              age: ageId,
+              planet: 'numbers',
+              containerType: 'basket',
+              promptText: `Bé tìm nhóm có ${n} ngôi sao tương ứng với số ${n}!`,
+              hintText: `Con đếm kỹ từng ngôi sao để tìm đúng số lượng ${n} nhé!`,
+              targetKey: `cnt_${n}`,
+              options: [
+                { key: `cnt_${n}`, label: `${n} ngôi sao`, kind: 'numberGroup', count: n, objectType: 'star', colorId: 'yellow' },
+                { key: `cnt_${d1}`, label: `${d1} ngôi sao`, kind: 'numberGroup', count: d1, objectType: 'star', colorId: 'yellow' },
+                { key: `cnt_${d2}`, label: `${d2} ngôi sao`, kind: 'numberGroup', count: d2, objectType: 'star', colorId: 'yellow' }
+              ]
+            });
+          }
+        });
+
+        // D4. Khối hình 3D (Mẫu giáo 5 tuổi)
+        const solidKeys = ['sphere', 'cylinder', 'cube', 'cuboid'];
+        const solidQuestions = [
+          { target: 'sphere', prompt: 'Bé hãy chọn Khối cầu nào!' },
+          { target: 'cylinder', prompt: 'Đâu là Khối trụ có hai mặt đáy tròn?' },
+          { target: 'cube', prompt: 'Bé tìm Khối vuông có sáu mặt vuông bằng nhau!' },
+          { target: 'cuboid', prompt: 'Bé hãy chọn Khối chữ nhật nhé!' },
+          { target: 'sphere', prompt: 'Đồ vật nào có dạng Khối cầu?', real: true },
+          { target: 'cylinder', prompt: 'Đồ vật nào có dạng Khối trụ?', real: true },
+          { target: 'cube', prompt: 'Đồ vật nào có dạng Khối vuông?', real: true },
+          { target: 'cuboid', prompt: 'Đồ vật nào có dạng Khối chữ nhật?', real: true }
+        ];
+        solidQuestions.forEach((sq, idx) => {
+          const others = solidKeys.filter(k => k !== sq.target);
+          const mk = sid => sq.real
+            ? { key: `sol_${sid}`, label: SOLIDS_DATA[sid].realName, kind: 'realObject', solidId: sid, realType: SOLIDS_DATA[sid].realType, colorId: 'orange' }
+            : { key: `sol_${sid}`, label: SOLIDS_DATA[sid].name, kind: 'solid', solidId: sid, colorId: sid === 'sphere' ? 'red' : sid === 'cylinder' ? 'blue' : sid === 'cube' ? 'yellow' : 'green' };
+          bank.push({
+            id: `5yo_sol_${idx}`,
+            age: '5yo',
+            planet: 'solids',
+            containerType: 'house',
+            promptText: sq.prompt,
+            hintText: SOLIDS_DATA[sq.target].desc,
+            targetKey: `sol_${sq.target}`,
+            options: [mk(sq.target), mk(others[0]), mk(others[1]), mk(others[2])]
+          });
+        });
+
+        return bank;
+      }
+
+      // =========================================================================
+      // 5. TRẠNG THÁI ỨNG DỤNG & LƯU TRỮ LOCALSTORAGE
+      // =========================================================================
+      const State = {
+        screen: 'welcome',
+        age: localStorage.getItem('bkpng_age') || '2yo',
+        planet: 'colors',
+        mode: 'explore',
+        game: 'tap',
+        enableExtended: localStorage.getItem('bkpng_ext') === 'true',
+        enableSolidsForAll: localStorage.getItem('bkpng_solids_all') === 'true',
+        questionsPerSession: Number(localStorage.getItem('bkpng_qcount') || 5),
+        soundEnabled: localStorage.getItem('bkpng_sound') !== 'false',
+        speechRate: Number(localStorage.getItem('bkpng_rate') || 0.9),
+        stats: JSON.parse(localStorage.getItem('bkpng_stats') || '{"sessions":0,"correct":0,"attempts":0}'),
+        bank: buildDefaultBank(),
+        // Trạng thái phiên học hiện tại
+        exploreIdx: 0,
+        sessionQuestions: [],
+        qIdx: 0,
+        currentOptions: [],
+        selectedKey: null,
+        isSolved: false,
+        feedback: '',
+        showHintGlow: false,
+        hintTimer: null,
+        // Trạng thái các game
+        dragMatched: [],
+        dragSelected: null,
+        matchPairs: [],
+        matchRight: [],
+        matchLeftSel: null,
+        matchSolved: [],
+        starTarget: 3,
+        starCounted: [],
+        starSolved: false,
+        sortBaskets: [],
+        sortItems: [],
+        sortDone: [],
+        sortActiveKey: null,
+        teacherTab: 'curriculum',
+        lastCompletedTitle: ''
+      };
+
+      VoiceEngine.enabled = State.soundEnabled;
+      VoiceEngine.rate = State.speechRate;
+      VoiceEngine.init();
+
+      function savePrefs() {
+        localStorage.setItem('bkpng_age', State.age);
+        localStorage.setItem('bkpng_ext', String(State.enableExtended));
+        localStorage.setItem('bkpng_solids_all', String(State.enableSolidsForAll));
+        localStorage.setItem('bkpng_qcount', String(State.questionsPerSession));
+        localStorage.setItem('bkpng_sound', String(State.soundEnabled));
+        localStorage.setItem('bkpng_rate', String(State.speechRate));
+        localStorage.setItem('bkpng_stats', JSON.stringify(State.stats));
+      }
+
+      function shuffle(arr) {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      }
+
+      function getFilteredQuestions() {
+        return State.bank.filter(q =>
+          q.age === State.age &&
+          q.planet === State.planet &&
+          (State.enableExtended || !q.isExtended)
+        );
+      }
+
+      function clearHintTimer() {
+        if (State.hintTimer) {
+          clearTimeout(State.hintTimer);
+          State.hintTimer = null;
+        }
+      }
+
+      // Chuyển tiếp giữa 6 trò chơi trong "Bé vui chơi" trước khi hoàn thành
+      function advanceAfterGameFinished(finishedGameId, finishedGameTitle) {
+        if (State.mode === 'play') {
+          const idx = GAMES_LIST.findIndex(g => g.id === finishedGameId);
+          if (idx >= 0 && idx < GAMES_LIST.length - 1) {
+            const nextGame = GAMES_LIST[idx + 1];
+            startGame(nextGame.id);
+            return;
+          }
+        }
+        State.stats.sessions++;
+        savePrefs();
+        State.lastCompletedTitle = finishedGameTitle;
+        State.screen = 'complete';
+        render();
+        VoiceEngine.speak('Tuyệt vời! Bé đã chinh phục trọn vẹn các trò chơi ngân hà rồi!');
+      }
+
+      // =========================================================================
+      // 6. KHỞI TẠO CÁC CHẾ ĐỘ HỌC & 6 TRÒ CHƠI
+      // =========================================================================
+      function startPractice(limit) {
+        clearHintTimer();
+        const pool = shuffle(getFilteredQuestions());
+        State.sessionQuestions = pool.slice(0, Math.min(limit || State.questionsPerSession, pool.length));
+        State.qIdx = 0;
+        prepareQuestion();
+      }
+
+      function prepareQuestion() {
+        clearHintTimer();
+        State.selectedKey = null;
+        State.isSolved = false;
+        State.feedback = '';
+        State.showHintGlow = false;
+        const q = State.sessionQuestions[State.qIdx];
+        if (!q) return;
+        State.currentOptions = shuffle(q.options);
+        render();
+        VoiceEngine.speak(q.promptText);
+        State.hintTimer = setTimeout(() => {
+          if (!State.isSolved && State.screen === 'lesson') {
+            State.showHintGlow = true;
+            render();
+          }
+        }, 8500);
+      }
+
+      function startGame(gameId) {
+        clearHintTimer();
+        State.game = gameId;
+        const pool = getFilteredQuestions();
+
+        if (gameId === 'tap') {
+          startPractice(Math.min(4, State.questionsPerSession));
+          return;
+        }
+        if (gameId === 'challenge') {
+          startPractice(State.questionsPerSession);
+          return;
+        }
+        if (gameId === 'drag') {
+          const q = pool[Math.floor(Math.random() * pool.length)] || pool[0];
+          let dragOpts = [...q.options];
+          // Khi thả hình vào ngôi nhà, luôn đảm bảo đủ 3 ngôi nhà chứa đúng hình có màu tương ứng
+          if (q.containerType === 'house' && dragOpts.length < 3) {
+            const extraShapes = [
+              { key: 's_triangle', label: SHAPES_DATA.triangle.name, kind: 'object', objectType: 'triangle', colorId: 'green', groupId: 'triangle' },
+              { key: 's_rectangle', label: SHAPES_DATA.rectangle.name, kind: 'object', objectType: 'rectangle', colorId: 'orange', groupId: 'rectangle' }
+            ];
+            for (const ex of extraShapes) {
+              if (dragOpts.length < 3 && !dragOpts.some(o => o.key === ex.key)) {
+                dragOpts.push(ex);
+              }
+            }
+          }
+          const dragQ = { ...q, options: dragOpts };
+          State.sessionQuestions = [dragQ];
+          State.currentOptions = shuffle(dragOpts);
+          State.dragMatched = [];
+          State.dragSelected = null;
+          State.feedback = dragQ.containerType === 'basket'
+            ? 'Bé hãy kéo từng đồ vật thả vào đúng chiếc giỏ cùng màu nhé!'
+            : 'Bé hãy kéo từng hình thả vào đúng ngôi nhà có hình và màu tương ứng nhé!';
+          render();
+          VoiceEngine.speak(State.feedback);
+          return;
+        }
+        if (gameId === 'match') {
+          const count = State.age === '2yo' ? 2 : 3;
+          let pairs = [];
+          if (State.planet === 'numbers') {
+            const nums = State.age === '2yo' ? [1, 3] : [2, 4, 5];
+            pairs = nums.slice(0, count).map(n => ({
+              id: `p_${n}`,
+              left: { key: `l_${n}`, label: `Số ${n}`, kind: 'digit', count: n },
+              right: { key: `r_${n}`, label: `${n} ngôi sao`, kind: 'numberGroup', count: n, objectType: 'star', colorId: 'yellow' }
+            }));
+          } else if (State.planet === 'solids') {
+            pairs = ['sphere', 'cylinder', 'cube'].slice(0, count).map(sk => ({
+              id: `p_${sk}`,
+              left: { key: `l_${sk}`, label: SOLIDS_DATA[sk].name, kind: 'solid', solidId: sk },
+              right: { key: `r_${sk}`, label: SOLIDS_DATA[sk].realName, kind: 'realObject', realType: SOLIDS_DATA[sk].realType }
+            }));
+          } else if (State.planet === 'shapes') {
+            const shs = (State.age === '2yo' ? ['circle', 'square'] : ['circle', 'square', 'triangle']).slice(0, count);
+            const cols = ['red', 'blue', 'yellow'];
+            pairs = shs.map((sh, i) => ({
+              id: `p_${sh}`,
+              left: { key: `l_${sh}`, label: SHAPES_DATA[sh].name, kind: 'object', objectType: sh, colorId: cols[i] },
+              right: { key: `r_${sh}`, label: SHAPES_DATA[sh].name, kind: 'object', objectType: sh, colorId: cols[i] }
+            }));
+          } else {
+            const cols = ['red', 'yellow', 'blue'].slice(0, count);
+            const objs = ['apple', 'star', 'ball'];
+            pairs = cols.map((ck, i) => {
+              const cLbl = colorLabelForAge(ck, State.age);
+              return {
+                id: `p_${ck}`,
+                left: { key: `l_${ck}`, label: cLbl, kind: 'object', objectType: objs[i], colorId: ck },
+                right: { key: `r_${ck}`, label: cLbl, kind: 'object', objectType: objs[i], colorId: ck }
+              };
+            });
+          }
+          State.matchPairs = pairs;
+          State.matchRight = shuffle(pairs.map(p => ({ id: p.id, opt: p.right })));
+          State.matchLeftSel = null;
+          State.matchSolved = [];
+          render();
+          VoiceEngine.speak('Bé hãy tìm hai thẻ giống nhau hoặc tương ứng với nhau nhé!');
+          return;
+        }
+        if (gameId === 'countStars') {
+          State.starTarget = State.age === '2yo' ? (Math.floor(Math.random() * 3) + 1) : State.age === '3yo' ? (Math.floor(Math.random() * 5) + 1) : (Math.floor(Math.random() * 6) + 3);
+          State.starCounted = [];
+          State.starSolved = false;
+          render();
+          VoiceEngine.speak('Bé hãy chạm vào từng ngôi sao để cùng đếm nhé!');
+          return;
+        }
+        if (gameId === 'sort') {
+          if (State.planet === 'shapes') {
+            State.sortBaskets = [
+              { id: 'circle', label: 'Ngôi nhà Hình Tròn', colorId: 'red', shapeId: 'circle', containerType: 'house' },
+              { id: 'square', label: 'Ngôi nhà Hình Vuông', colorId: 'blue', shapeId: 'square', containerType: 'house' }
+            ];
+            State.sortItems = shuffle([
+              { key: 's1', label: 'Hình tròn', kind: 'object', objectType: 'circle', colorId: 'red', groupId: 'circle' },
+              { key: 's2', label: 'Hình vuông', kind: 'object', objectType: 'square', colorId: 'blue', groupId: 'square' },
+              { key: 's3', label: 'Hình tròn', kind: 'object', objectType: 'circle', colorId: 'red', groupId: 'circle' },
+              { key: 's4', label: 'Hình vuông', kind: 'object', objectType: 'square', colorId: 'blue', groupId: 'square' }
+            ]);
+          } else {
+            const blueLbl = colorLabelForAge('blue', State.age);
+            State.sortBaskets = State.age === '2yo'
+              ? [
+                  { id: 'red', label: 'Giỏ Màu đỏ', colorId: 'red', containerType: 'basket' },
+                  { id: 'yellow', label: 'Giỏ Màu vàng', colorId: 'yellow', containerType: 'basket' }
+                ]
+              : [
+                  { id: 'red', label: 'Giỏ Màu đỏ', colorId: 'red', containerType: 'basket' },
+                  { id: 'yellow', label: 'Giỏ Màu vàng', colorId: 'yellow', containerType: 'basket' },
+                  { id: 'blue', label: `Giỏ ${blueLbl}`, colorId: 'blue', containerType: 'basket' }
+                ];
+            const items = [
+              { key: 'c1', label: 'Màu đỏ', kind: 'object', objectType: 'apple', colorId: 'red', groupId: 'red' },
+              { key: 'c2', label: 'Màu vàng', kind: 'object', objectType: 'star', colorId: 'yellow', groupId: 'yellow' },
+              { key: 'c3', label: 'Màu đỏ', kind: 'object', objectType: 'ball', colorId: 'red', groupId: 'red' },
+              { key: 'c4', label: 'Màu vàng', kind: 'object', objectType: 'flower', colorId: 'yellow', groupId: 'yellow' }
+            ];
+            if (State.age !== '2yo') {
+              items.push({ key: 'c5', label: blueLbl, kind: 'object', objectType: 'car', colorId: 'blue', groupId: 'blue' });
+            }
+            State.sortItems = shuffle(items);
+          }
+          State.sortDone = [];
+          State.sortActiveKey = null;
+          render();
+          VoiceEngine.speak('Bé hãy phân loại các đồ vật vào đúng chiếc giỏ cùng màu nhé!');
+        }
+      }
+
+      // =========================================================================
+      // 7. CÁC MÀN HÌNH GIAO DIỆN (RENDER)
+      // =========================================================================
+      function getExploreCards() {
+        if (State.planet === 'colors') {
+          const keys = State.age === '2yo'
+            ? ['red', 'yellow', 'blue']
+            : State.age === '3yo'
+              ? (State.enableExtended ? ['red', 'yellow', 'blue', 'green', 'orange', 'purple', 'pink', 'white', 'black', 'brown'] : ['red', 'yellow', 'blue', 'green', 'orange', 'purple', 'pink', 'white', 'black'])
+              : ['red', 'yellow', 'blue', 'green', 'orange', 'purple', 'pink', 'white', 'black', 'brown'];
+          return keys.map(k => {
+            const c = TARGET_COLORS[k];
+            const title = colorLabelForAge(k, State.age);
+            const exText = (State.age === '2yo' && k === 'blue') ? 'Quả bóng màu xanh' : c.exampleObj;
+            return {
+              title: title,
+              desc: exText,
+              speech: `Đây là ${title.toLowerCase()}. ${exText}!`,
+              visual: renderObjectSVG(c.objectType, k, 165)
+            };
+          });
+        }
+        if (State.planet === 'shapes') {
+          const keys = State.age === '2yo' ? ['circle', 'square'] : ['circle', 'square', 'triangle', 'rectangle'];
+          const cols = ['red', 'blue', 'yellow', 'green'];
+          return keys.map((k, i) => {
+            const s = SHAPES_DATA[k];
+            const cLbl = colorLabelForAge(cols[i], State.age).toLowerCase();
+            return {
+              title: `${s.name} ${cLbl}`,
+              desc: `${s.desc} (${s.exampleObj})`,
+              speech: `Đây là ${s.name.toLowerCase()} ${cLbl}. ${s.desc}`,
+              visual: renderObjectSVG(k, cols[i], 165)
+            };
+          });
+        }
+        if (State.planet === 'numbers') {
+          if (State.age === '2yo' && !State.enableExtended) {
+            return [
+              {
+                title: 'Một ngôi sao màu vàng',
+                desc: 'Chỉ có 1 ngôi sao đứng một mình.',
+                speech: 'Đây là một ngôi sao màu vàng. Chỉ có một ngôi sao thôi nhé!',
+                visual: renderOptionVisual({ kind: 'numberGroup', count: 1, objectType: 'star', colorId: 'yellow' }, 155)
+              },
+              {
+                title: 'Nhiều ngôi sao màu vàng',
+                desc: 'Có rất nhiều ngôi sao ở cạnh nhau.',
+                speech: 'Còn đây là nhiều ngôi sao màu vàng. Có rất nhiều ngôi sao cùng nhau!',
+                visual: renderOptionVisual({ kind: 'numberGroup', count: 5, objectType: 'star', colorId: 'yellow' }, 155)
+              }
+            ];
+          }
+          const maxN = State.age === '2yo' ? 5 : (State.age === '3yo' && !State.enableExtended ? 5 : 10);
+          return Array.from({ length: maxN }, (_, i) => {
+            const n = i + 1;
+            return {
+              title: `Số ${n}`,
+              desc: `Có tất cả ${n} ngôi sao màu vàng.`,
+              speech: `Đây là số ${n}. Có ${n} ngôi sao màu vàng lấp lánh!`,
+              visual: `<div class="flex flex-col sm:flex-row items-center gap-6">${renderOptionVisual({ kind: 'digit', count: n }, 110)}${renderOptionVisual({ kind: 'numberGroup', count: n, objectType: 'star', colorId: 'yellow' }, 150)}</div>`
+            };
+          });
+        }
+        const solidColorNames = { sphere: 'màu đỏ', cylinder: 'màu xanh dương', cube: 'màu vàng', cuboid: 'màu xanh lá cây' };
+        return Object.values(SOLIDS_DATA).map(s => ({
+          title: `${s.name} ${solidColorNames[s.id]}`,
+          desc: `${s.desc} Ví dụ: ${s.realName}.`,
+          speech: `Đây là ${s.name.toLowerCase()} ${solidColorNames[s.id]}. ${s.desc}`,
+          visual: `<div class="flex flex-col sm:flex-row items-center gap-6">${renderSolid3DSVG(s.id, 160)}<div class="flex flex-col items-center bg-[#F8F4EC] p-4 rounded-2xl">${renderRealObjectSVG(s.realType, 105)}<span class="text-sm font-extrabold mt-1">${s.realName}</span></div></div>`
+        }));
+      }
+
+      function render() {
+        const root = document.getElementById('app');
+        if (!root) return;
+
+        // ---------------- 1. MÀN HÌNH CHÀO MỪNG ----------------
+        if (State.screen === 'welcome') {
+          root.innerHTML = `
+            <div class="flex-1 bg-gradient-to-b from-[#202E59] via-[#313B72] to-[#6C6AA7] text-white flex flex-col justify-between p-4 sm:p-8 relative overflow-hidden">
+              <header class="relative z-10 flex flex-wrap items-center justify-between gap-2 max-w-6xl w-full mx-auto">
+                <button id="btnToggleSound" class="min-h-[64px] px-5 rounded-2xl bg-white/15 hover:bg-white/25 font-bold text-base flex items-center gap-2 active:scale-95">
+                  <span>${State.soundEnabled ? '🔊 Âm thanh: Bật' : '🔇 Âm thanh: Tắt'}</span>
+                </button>
+                <button id="btnTeacher" class="min-h-[64px] px-5 rounded-2xl bg-white/15 hover:bg-white/25 border border-white/25 font-bold text-base flex items-center gap-2 active:scale-95">
+                  <span>⚙️ Góc giáo viên</span>
+                </button>
+              </header>
+
+              <main class="relative z-10 max-w-4xl w-full mx-auto flex flex-col items-center text-center my-auto py-6">
+                <div class="animate-float mb-3">${renderBeSao('welcome', 148)}</div>
+                <div class="px-4 py-1.5 rounded-full bg-white/15 text-[#F8D375] font-bold text-sm sm:text-base mb-3">
+                  ✨ Chào mừng các phi hành gia nhí!
+                </div>
+                <h1 class="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white drop-shadow mb-3">
+                  BÉ KHÁM PHÁ NGÂN HÀ
+                </h1>
+                <p class="text-lg sm:text-2xl font-bold text-[#A8D6E8] max-w-2xl mb-8">
+                  Vũ trụ Sắc màu – Hình dạng – Con số – Hình khối
+                </p>
+                <button id="btnStart" class="min-h-[84px] px-10 sm:px-14 rounded-3xl bg-[#F8D375] hover:bg-[#ffe08a] text-[#202E59] font-black text-2xl sm:text-3xl shadow-xl flex items-center gap-4 transition transform hover:scale-105 active:scale-95">
+                  <span>🚀 BÉ BẮT ĐẦU</span>
+                </button>
+              </main>
+
+              <footer class="relative z-10 text-center text-xs sm:text-sm text-white/80 max-w-4xl mx-auto">
+                Giáo viên thực hiện: <strong>Lê Chinh Nhân</strong> – Trường Mầm non Giang Thành, Xã Giang Thành, Tỉnh An Giang
+              </footer>
+            </div>`;
+          document.getElementById('btnToggleSound').onclick = () => { State.soundEnabled = !State.soundEnabled; VoiceEngine.enabled = State.soundEnabled; savePrefs(); render(); };
+          document.getElementById('btnTeacher').onclick = () => { VoiceEngine.stop(); State.screen = 'teacher'; render(); };
+          document.getElementById('btnStart').onclick = () => {
+            VoiceEngine.speak('Chào bé yêu! Mình cùng chọn độ tuổi để bắt đầu chuyến du hành nhé!');
+            State.screen = 'ageSelect';
+            render();
+          };
+          return;
+        }
+
+        // ---------------- 2. MÀN HÌNH CHỌN ĐỘ TUỔI ----------------
+        if (State.screen === 'ageSelect') {
+          const cards = AGE_GROUPS.map(a => `
+            <button data-age="${a.id}" style="background-color:${a.bg}; border-color:${State.age === a.id ? a.accent : 'transparent'}"
+              class="age-card min-h-[120px] p-6 rounded-3xl border-4 text-left shadow-md hover:shadow-xl transition transform hover:-translate-y-1 active:scale-95 flex items-center justify-between">
+              <div>
+                <span style="background-color:${a.accent}" class="inline-block px-3.5 py-1 rounded-full text-white text-sm font-extrabold mb-2">${a.badge}</span>
+                <h3 class="text-2xl sm:text-3xl font-black text-[#202E59]">${a.title}</h3>
+                <p class="text-base sm:text-lg font-bold text-slate-700 mt-0.5">${a.subtitle}</p>
+              </div>
+              <div style="background-color:${a.accent}" class="w-16 h-16 rounded-2xl text-white flex items-center justify-center text-2xl font-black shrink-0 shadow">➜</div>
+            </button>`).join('');
+
+          root.innerHTML = `
+            <div class="flex-1 bg-[#F8F4EC] flex flex-col p-4 sm:p-8">
+              <header class="max-w-5xl w-full mx-auto flex items-center justify-between mb-6">
+                <button id="btnHome" class="min-h-[64px] px-5 rounded-2xl bg-white border-2 border-slate-200 font-extrabold text-lg active:scale-95">⬅ Trang chủ</button>
+                <button id="btnListenAge" class="min-h-[64px] px-5 rounded-2xl bg-[#202E59] text-white font-bold text-lg active:scale-95">🔊 Nghe hướng dẫn</button>
+              </header>
+              <main class="max-w-5xl w-full mx-auto flex-1 flex flex-col justify-center">
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 text-center sm:text-left">
+                  ${renderBeSao('guide', 96)}
+                  <div>
+                    <h2 class="text-2xl sm:text-4xl font-black text-[#202E59]">Bé đang học lớp mấy tuổi?</h2>
+                    <p class="text-base sm:text-xl font-semibold text-slate-600 mt-1">Chạm vào thẻ lớp học để mở bản đồ hành tinh dành riêng cho bé nhé!</p>
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">${cards}</div>
+              </main>
+            </div>`;
+          document.getElementById('btnHome').onclick = () => { VoiceEngine.stop(); State.screen = 'welcome'; render(); };
+          document.getElementById('btnListenAge').onclick = () => VoiceEngine.speak('Bé hãy chọn lớp học phù hợp với độ tuổi của mình nhé!');
+          document.querySelectorAll('.age-card').forEach(btn => {
+            btn.onclick = () => {
+              State.age = btn.getAttribute('data-age');
+              savePrefs();
+              const ageObj = AGE_GROUPS.find(x => x.id === State.age);
+              VoiceEngine.speak(`Chào mừng bé đến với ${ageObj.title}! Hãy chọn một hành tinh để khám phá nào!`);
+              State.screen = 'map';
+              render();
+            };
+          });
+          return;
+        }
+
+        // ---------------- 3. MÀN HÌNH BẢN ĐỒ NGÂN HÀ ----------------
+        if (State.screen === 'map') {
+          const visiblePlanets = (State.age === '5yo' || State.enableSolidsForAll)
+            ? PLANETS
+            : PLANETS.filter(p => p.id !== 'solids');
+          const ageObj = AGE_GROUPS.find(a => a.id === State.age);
+
+          const planetCards = visiblePlanets.map(p => `
+            <div class="bg-[#F8F4EC] text-[#202E59] rounded-3xl p-6 shadow-xl flex flex-col justify-between border-4 border-white/80">
+              <div>
+                <div class="flex justify-center mb-3">
+                  <svg width="110" height="92" viewBox="0 0 120 100">
+                    <circle cx="60" cy="50" r="34" fill="${p.color}"/>
+                    <ellipse cx="60" cy="52" rx="52" ry="13" transform="rotate(-16 60 52)" fill="none" stroke="${p.ring}" stroke-width="5"/>
+                  </svg>
+                </div>
+                <h3 class="text-2xl font-black text-center mb-1">${p.title}</h3>
+                <p class="text-sm sm:text-base font-semibold text-slate-600 text-center mb-4">${p.subtitle}</p>
+              </div>
+              <div class="space-y-2.5">
+                <button data-planet="${p.id}" data-mode="explore" class="btn-enter w-full min-h-[64px] rounded-2xl bg-[#A8D6E8] hover:bg-[#93c9df] text-[#202E59] font-extrabold text-lg active:scale-95">👁️ 1. Bé khám phá</button>
+                <button data-planet="${p.id}" data-mode="practice" class="btn-enter w-full min-h-[64px] rounded-2xl bg-[#F8D375] hover:bg-[#f4c653] text-[#202E59] font-extrabold text-lg active:scale-95">✅ 2. Bé thực hành</button>
+                <button data-planet="${p.id}" data-mode="play" class="btn-enter w-full min-h-[64px] rounded-2xl bg-[#202E59] hover:bg-[#2d3f78] text-white font-extrabold text-lg active:scale-95">🎮 3. Bé vui chơi (6 Game)</button>
+              </div>
+            </div>`).join('');
+
+          root.innerHTML = `
+            <div class="flex-1 bg-gradient-to-b from-[#202E59] to-[#3B427A] text-white flex flex-col p-4 sm:p-8">
+              <header class="max-w-6xl w-full mx-auto flex flex-wrap items-center justify-between gap-3 mb-6">
+                <button id="btnChangeAge" class="min-h-[64px] px-5 rounded-2xl bg-white/15 hover:bg-white/25 font-bold text-lg active:scale-95">⬅ Đổi độ tuổi</button>
+                <div class="px-5 py-2.5 rounded-2xl bg-[#F8D375] text-[#202E59] font-black text-base sm:text-xl shadow">${ageObj.title}</div>
+                <button id="btnTeacherMap" class="min-h-[64px] px-4 rounded-2xl bg-white/15 hover:bg-white/25 font-bold active:scale-95">⚙️ Góc giáo viên</button>
+              </header>
+              <main class="max-w-6xl w-full mx-auto flex-1 flex flex-col justify-center">
+                <div class="flex items-center justify-center gap-4 mb-6 text-center sm:text-left">
+                  ${renderBeSao('guide', 86)}
+                  <div>
+                    <h2 class="text-2xl sm:text-4xl font-black text-[#F8D375]">Bản đồ Ngân hà Kiến thức</h2>
+                    <p class="text-base sm:text-xl text-[#A8D6E8] font-semibold">Bé muốn lái phi thuyền tới hành tinh nào hôm nay?</p>
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 ${visiblePlanets.length === 4 ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'} gap-5">${planetCards}</div>
+              </main>
+            </div>`;
+          document.getElementById('btnChangeAge').onclick = () => { VoiceEngine.stop(); State.screen = 'ageSelect'; render(); };
+          document.getElementById('btnTeacherMap').onclick = () => { VoiceEngine.stop(); State.screen = 'teacher'; render(); };
+          document.querySelectorAll('.btn-enter').forEach(btn => {
+            btn.onclick = () => {
+              State.planet = btn.getAttribute('data-planet');
+              State.mode = btn.getAttribute('data-mode');
+              State.screen = 'lesson';
+              if (State.mode === 'explore') {
+                State.exploreIdx = 0;
+                const cards = getExploreCards();
+                render();
+                if (cards[0]) VoiceEngine.speak(cards[0].speech);
+              } else if (State.mode === 'practice') {
+                startPractice(State.questionsPerSession);
+              } else {
+                startGame('tap');
+              }
+            };
+          });
+          return;
+        }
+
+        // ---------------- 4. MÀN HÌNH HỌC & TRÒ CHƠI ----------------
+        if (State.screen === 'lesson') {
+          const pTitle = PLANETS.find(p => p.id === State.planet).title;
+          let bodyHtml = '';
+
+          // --- MODE 1: BÉ KHÁM PHÁ ---
+          if (State.mode === 'explore') {
+            const cards = getExploreCards();
+            const cur = cards[State.exploreIdx] || cards[0];
+            bodyHtml = `
+              <div class="max-w-3xl w-full mx-auto bg-white rounded-3xl p-6 sm:p-10 shadow-lg border-2 border-slate-200 flex flex-col items-center text-center my-auto">
+                <div class="w-full flex items-center justify-between mb-4">
+                  <span class="px-4 py-1.5 rounded-full bg-[#A8D6E8]/40 font-extrabold">Thẻ ${State.exploreIdx + 1} / ${cards.length}</span>
+                  <button id="btnReplayExplore" class="min-h-[64px] px-5 rounded-2xl bg-[#F8D375] font-extrabold text-lg active:scale-95">🔊 Nghe lại</button>
+                </div>
+                <div class="min-h-[200px] flex items-center justify-center my-4">${cur.visual}</div>
+                <h3 class="text-3xl sm:text-4xl font-black mb-2">${cur.title}</h3>
+                <p class="text-base sm:text-xl font-semibold text-slate-600 mb-8">${cur.desc}</p>
+                <div class="w-full flex items-center justify-between gap-3">
+                  <button id="btnPrevCard" class="min-h-[72px] px-6 rounded-2xl bg-slate-100 font-extrabold text-lg active:scale-95">⬅ Trước</button>
+                  ${State.exploreIdx < cards.length - 1
+                    ? `<button id="btnNextCard" class="min-h-[72px] px-8 rounded-2xl bg-[#202E59] text-white font-extrabold text-xl active:scale-95">Tiếp theo ➜</button>`
+                    : `<button id="btnGoPractice" class="min-h-[72px] px-8 rounded-2xl bg-[#388E3C] text-white font-extrabold text-xl active:scale-95">✅ Sang Thực hành</button>`}
+                </div>
+              </div>`;
+          }
+
+          // --- MODE 2 & GAME 1 / GAME 6: CHẠM ĐÁP ÁN ĐÚNG (Khen hết câu mới qua câu mới) ---
+          if (State.mode === 'practice' || (State.mode === 'play' && (State.game === 'tap' || State.game === 'challenge'))) {
+            const q = State.sessionQuestions[State.qIdx];
+            const dots = State.sessionQuestions.map((_, i) =>
+              `<div class="h-3.5 rounded-full ${i < State.qIdx ? 'w-8 bg-[#388E3C]' : i === State.qIdx ? 'w-10 bg-[#F4C430]' : 'w-6 bg-slate-200'}"></div>`
+            ).join('');
+
+            const optsHtml = State.currentOptions.map(opt => {
+              const isTarget = opt.key === q.targetKey;
+              const isWrong = State.selectedKey === opt.key && !isTarget;
+              const isRight = State.isSolved && isTarget;
+              const cls = isRight
+                ? 'bg-emerald-50 border-[#388E3C] scale-105 shadow-lg'
+                : isWrong
+                  ? 'bg-amber-50 border-amber-400 opacity-80'
+                  : State.showHintGlow && isTarget
+                    ? 'bg-white border-[#F4C430] ring-4 ring-[#F8D375]'
+                    : 'bg-white border-slate-200 hover:border-[#6C6AA7] shadow-sm';
+              return `
+                <button data-opt="${opt.key}" class="opt-btn min-h-[175px] p-5 rounded-3xl border-4 flex flex-col items-center justify-center gap-3 transition active:scale-95 ${cls}">
+                  ${renderOptionVisual(opt, 108)}
+                  <span class="text-xl sm:text-2xl font-black text-[#202E59]">${opt.label}</span>
+                </button>`;
+            }).join('');
+
+            bodyHtml = `
+              <div class="max-w-4xl w-full mx-auto bg-white rounded-3xl p-5 sm:p-8 shadow-lg border-2 border-slate-200 my-auto">
+                <div class="flex items-center justify-between gap-4 mb-5">
+                  <div class="flex items-center gap-2">${dots}</div>
+                  <span class="font-extrabold text-slate-600">Câu ${State.qIdx + 1} / ${State.sessionQuestions.length}</span>
+                </div>
+                <div class="bg-[#F8F4EC] rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+                  <div class="flex items-center gap-4">
+                    ${renderBeSao(State.isSolved ? 'happy' : 'guide', 76)}
+                    <h3 class="text-xl sm:text-3xl font-black">${q.promptText}</h3>
+                  </div>
+                  <button id="btnReplayQ" class="min-h-[64px] px-5 rounded-2xl bg-[#F8D375] font-extrabold text-lg shrink-0 active:scale-95">🔊 Nghe lại</button>
+                </div>
+                <div class="grid grid-cols-1 ${State.currentOptions.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-2 md:grid-cols-3'} gap-5 mb-5">${optsHtml}</div>
+                <div class="min-h-[64px] flex items-center justify-between gap-4">
+                  <div class="px-5 py-3 rounded-2xl font-extrabold text-lg ${State.feedback ? (State.isSolved ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900') : 'text-slate-500'}">
+                    ${State.feedback || 'Bé hãy chạm vào đáp án đúng nhé!'}
+                  </div>
+                  ${State.isSolved ? `<button id="btnNextQ" class="min-h-[68px] px-7 rounded-2xl bg-[#388E3C] text-white font-black text-xl shadow active:scale-95">${State.qIdx < State.sessionQuestions.length - 1 ? 'Câu tiếp theo ➜' : 'Hoàn thành ✨'}</button>` : ''}
+                </div>
+              </div>`;
+          }
+
+          // --- GAME 2: KÉO THẢ DI CHUYỂN THỰC THỤ VÀO GIỎ / NGÔI NHÀ CÙNG MÀU ---
+          if (State.mode === 'play' && State.game === 'drag') {
+            const q = State.sessionQuestions[0];
+            const cType = q.containerType || 'basket';
+            const sourcesHtml = State.currentOptions.map(opt => {
+              const done = State.dragMatched.includes(opt.key);
+              return `
+                <div data-src="${opt.key}"
+                  class="drag-source touch-card min-h-[140px] p-4 rounded-3xl border-4 flex flex-col items-center justify-center transition ${
+                    done ? 'opacity-20 border-slate-200 bg-slate-50 pointer-events-none' : 'border-[#6C6AA7] bg-white cursor-grab shadow-md'
+                  }">
+                  ${renderOptionVisual(opt, 88)}
+                  <span class="font-extrabold text-base mt-1">${opt.label}</span>
+                </div>`;
+            }).join('');
+
+            const targetsHtml = q.options.map(t => {
+              const done = State.dragMatched.includes(t.key);
+              return `
+                <div data-target="${t.key}"
+                  class="drag-target min-h-[165px] p-4 rounded-3xl border-4 border-dashed flex flex-col items-center justify-center transition ${
+                    done ? 'border-[#388E3C] bg-emerald-50 border-solid' : 'border-slate-300 bg-[#F8F4EC]'
+                  }">
+                  ${renderContainerSVG(cType, t, done, 122)}
+                  <span class="font-black text-base mt-1 ${done ? 'text-emerald-800' : 'text-slate-700'}">${t.label}</span>
+                </div>`;
+            }).join('');
+
+            bodyHtml = `
+              <div class="max-w-4xl w-full mx-auto bg-white rounded-3xl p-6 sm:p-8 shadow-lg border-2 border-slate-200 my-auto">
+                <div class="flex items-center justify-between gap-4 mb-6">
+                  <div class="flex items-center gap-3">${renderBeSao('guide', 70)}<p class="text-lg sm:text-2xl font-black">${State.feedback}</p></div>
+                  <button id="btnReplayDrag" class="min-h-[60px] px-4 rounded-2xl bg-[#F8D375] font-bold shrink-0">🔊 Nghe</button>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">${sourcesHtml}</div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">${targetsHtml}</div>
+              </div>`;
+          }
+
+          // --- GAME 3: TÌM ĐÔI BẠN THÂN ---
+          if (State.mode === 'play' && State.game === 'match') {
+            const leftHtml = State.matchPairs.map(p => {
+              const done = State.matchSolved.includes(p.id);
+              const sel = State.matchLeftSel === p.id;
+              return `
+                <button data-mleft="${p.id}" ${done ? 'disabled' : ''} class="m-left w-full min-h-[130px] p-4 rounded-3xl border-4 flex flex-col items-center justify-center transition ${
+                  done ? 'bg-emerald-50 border-[#388E3C] opacity-55' : sel ? 'bg-amber-50 border-[#F4C430] scale-105 shadow-md' : 'bg-white border-slate-200'
+                }">
+                  ${renderOptionVisual(p.left, 82)}
+                  <span class="font-extrabold text-base mt-1">${p.left.label}</span>
+                </button>`;
+            }).join('');
+
+            const rightHtml = State.matchRight.map(item => {
+              const done = State.matchSolved.includes(item.id);
+              return `
+                <button data-mright="${item.id}" ${done ? 'disabled' : ''} class="m-right w-full min-h-[130px] p-4 rounded-3xl border-4 flex flex-col items-center justify-center transition ${
+                  done ? 'bg-emerald-50 border-[#388E3C] opacity-55' : State.matchLeftSel ? 'bg-sky-50 border-[#1976D2]' : 'bg-white border-slate-200'
+                }">
+                  ${renderOptionVisual(item.opt, 82)}
+                  <span class="font-extrabold text-base mt-1">${item.opt.label}</span>
+                </button>`;
+            }).join('');
+
+            bodyHtml = `
+              <div class="max-w-4xl w-full mx-auto bg-white rounded-3xl p-6 sm:p-8 shadow-lg border-2 border-slate-200 my-auto">
+                <h3 class="text-xl sm:text-2xl font-black mb-5 text-center">Chạm một thẻ bên trái rồi chạm thẻ tương ứng bên phải nhé!</h3>
+                <div class="grid grid-cols-2 gap-6 sm:gap-12">
+                  <div class="space-y-4">${leftHtml}</div>
+                  <div class="space-y-4">${rightHtml}</div>
+                </div>
+              </div>`;
+          }
+
+          // --- GAME 4: ĐẾM SAO NGÂN HÀ ---
+          if (State.mode === 'play' && State.game === 'countStars') {
+            const starsHtml = Array.from({ length: State.starTarget }, (_, idx) => {
+              const order = State.starCounted.indexOf(idx);
+              const counted = order !== -1;
+              return `
+                <button data-sidx="${idx}" class="star-tap relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl flex items-center justify-center transition active:scale-90 ${counted ? 'bg-white/20 scale-105 ring-4 ring-[#F8D375]' : 'bg-white/5'}">
+                  ${renderObjectSVG('star', counted ? 'yellow' : 'white', 64)}
+                  ${counted ? `<span class="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-[#388E3C] text-white font-black flex items-center justify-center">${order + 1}</span>` : ''}
+                </button>`;
+            }).join('');
+
+            const d1 = State.starTarget === 1 ? 2 : State.starTarget - 1;
+            const d2 = State.starTarget >= 9 ? 7 : State.starTarget + 1;
+            const choices = [State.starTarget, d1, d2].sort((a, b) => a - b);
+
+            bodyHtml = `
+              <div class="max-w-4xl w-full mx-auto bg-white rounded-3xl p-6 sm:p-8 shadow-lg border-2 border-slate-200 text-center my-auto">
+                <div class="flex items-center justify-between mb-4">
+                  <span class="px-4 py-1.5 rounded-full bg-[#202E59] text-[#F8D375] font-extrabold text-lg">Đã đếm: ${State.starCounted.length} ngôi sao</span>
+                  <button id="btnReplayStar" class="min-h-[60px] px-4 rounded-2xl bg-[#F8D375] font-bold">🔊 Nghe lại</button>
+                </div>
+                <div class="bg-[#202E59] rounded-3xl p-6 min-h-[200px] flex flex-wrap items-center justify-center gap-5 mb-6">${starsHtml}</div>
+                <p class="text-xl font-black mb-4">Có tất cả bao nhiêu ngôi sao? Bé chọn số đúng bên dưới nhé!</p>
+                <div class="grid grid-cols-3 gap-4 max-w-xl mx-auto">
+                  ${choices.map(num => `<button data-snum="${num}" class="star-num min-h-[92px] rounded-3xl border-4 font-black text-4xl ${State.starSolved && num === State.starTarget ? 'bg-emerald-100 border-[#388E3C]' : 'bg-[#F8F4EC] border-slate-200'}">${num}</button>`).join('')}
+                </div>
+              </div>`;
+          }
+
+          // --- GAME 5: PHÂN LOẠI TÀI GIỎI ---
+          if (State.mode === 'play' && State.game === 'sort') {
+            const rem = State.sortItems.filter(i => !State.sortDone.includes(i.key));
+            const cur = rem.find(i => i.key === State.sortActiveKey) || rem[0];
+            State.sortActiveKey = cur ? cur.key : null;
+
+            const remHtml = rem.map(item => `
+              <button data-sitem="${item.key}" class="sort-item p-4 rounded-3xl border-4 transition ${cur && cur.key === item.key ? 'border-[#202E59] bg-amber-50 scale-110 shadow-md' : 'border-slate-200 opacity-75'}">
+                ${renderOptionVisual(item, 76)}
+              </button>`).join('');
+
+            const basketsHtml = State.sortBaskets.map(b => {
+              const cnt = State.sortItems.filter(i => State.sortDone.includes(i.key) && i.groupId === b.id).length;
+              return `
+                <button data-sbasket="${b.id}" class="sort-basket min-h-[155px] p-4 rounded-3xl border-4 border-slate-200 bg-[#F8F4EC] hover:bg-white flex flex-col items-center justify-center gap-1 active:scale-95 shadow-sm">
+                  ${renderContainerSVG(b.containerType || 'basket', b, cnt > 0, 110)}
+                  <span class="text-lg font-black text-[#202E59]">${b.label} (${cnt})</span>
+                </button>`;
+            }).join('');
+
+            bodyHtml = `
+              <div class="max-w-4xl w-full mx-auto bg-white rounded-3xl p-6 sm:p-8 shadow-lg border-2 border-slate-200 text-center my-auto">
+                <h3 class="text-xl sm:text-2xl font-black mb-4">Đưa đồ vật đang sáng vào đúng chiếc giỏ cùng màu nhé!</h3>
+                <div class="flex flex-wrap items-center justify-center gap-4 mb-8 min-h-[115px]">${remHtml}</div>
+                <div class="grid grid-cols-1 ${State.sortBaskets.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-5">${basketsHtml}</div>
+              </div>`;
+          }
+
+          const gameTabsHtml = State.mode === 'play'
+            ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-4">${GAMES_LIST.map(g =>
+                `<button data-gid="${g.id}" class="game-tab min-h-[60px] p-2.5 rounded-2xl border-2 font-black text-xs sm:text-sm ${State.game === g.id ? 'bg-[#202E59] text-white border-[#202E59]' : 'bg-white text-[#202E59] border-slate-200'}">${g.title}</button>`
+              ).join('')}</div>`
+            : '';
+
+          root.innerHTML = `
+            <div class="flex-1 bg-[#F8F4EC] flex flex-col">
+              <header class="bg-white border-b-2 border-slate-200 px-3 sm:px-6 py-3">
+                <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
+                  <button id="btnBackMap" class="min-h-[64px] px-4 rounded-2xl bg-slate-100 font-extrabold text-base sm:text-lg active:scale-95">⬅ Bản đồ (${pTitle})</button>
+                  <div class="flex items-center gap-1.5 bg-[#F8F4EC] p-1.5 rounded-2xl border border-slate-200">
+                    <button data-m="explore" class="mode-btn min-h-[54px] px-4 rounded-xl font-extrabold text-sm sm:text-base ${State.mode === 'explore' ? 'bg-[#202E59] text-white' : ''}">Khám phá</button>
+                    <button data-m="practice" class="mode-btn min-h-[54px] px-4 rounded-xl font-extrabold text-sm sm:text-base ${State.mode === 'practice' ? 'bg-[#202E59] text-white' : ''}">Thực hành</button>
+                    <button data-m="play" class="mode-btn min-h-[54px] px-4 rounded-xl font-extrabold text-sm sm:text-base ${State.mode === 'play' ? 'bg-[#202E59] text-white' : ''}">Vui chơi</button>
+                  </div>
+                  <button id="btnSoundLesson" class="min-h-[64px] min-w-[64px] rounded-2xl bg-slate-100 font-bold text-xl">${State.soundEnabled ? '🔊' : '🔇'}</button>
+                </div>
+              </header>
+              <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 flex flex-col">
+                ${gameTabsHtml}
+                ${bodyHtml}
+              </main>
+            </div>`;
+
+          // Gắn sự kiện điều hướng chung
+          document.getElementById('btnBackMap').onclick = () => { clearHintTimer(); VoiceEngine.stop(); State.screen = 'map'; render(); };
+          document.getElementById('btnSoundLesson').onclick = () => { State.soundEnabled = !State.soundEnabled; VoiceEngine.enabled = State.soundEnabled; savePrefs(); render(); };
+          document.querySelectorAll('.mode-btn').forEach(b => {
+            b.onclick = () => {
+              clearHintTimer();
+              VoiceEngine.stop();
+              State.mode = b.getAttribute('data-m');
+              if (State.mode === 'explore') {
+                State.exploreIdx = 0;
+                const cards = getExploreCards();
+                render();
+                if (cards[0]) VoiceEngine.speak(cards[0].speech);
+              } else if (State.mode === 'practice') {
+                startPractice(State.questionsPerSession);
+              } else {
+                startGame('tap');
+              }
+            };
+          });
+          document.querySelectorAll('.game-tab').forEach(b => {
+            b.onclick = () => {
+              VoiceEngine.stop();
+              startGame(b.getAttribute('data-gid'));
+            };
+          });
+
+          // Sự kiện Khám phá
+          if (State.mode === 'explore') {
+            const cards = getExploreCards();
+            document.getElementById('btnReplayExplore').onclick = () => VoiceEngine.speak(cards[State.exploreIdx].speech);
+            document.getElementById('btnPrevCard').onclick = () => {
+              State.exploreIdx = (State.exploreIdx - 1 + cards.length) % cards.length;
+              render();
+              VoiceEngine.speak(cards[State.exploreIdx].speech);
+            };
+            const btnNext = document.getElementById('btnNextCard');
+            if (btnNext) btnNext.onclick = () => { State.exploreIdx++; render(); VoiceEngine.speak(cards[State.exploreIdx].speech); };
+            const btnGoP = document.getElementById('btnGoPractice');
+            if (btnGoP) btnGoP.onclick = () => { State.mode = 'practice'; startPractice(State.questionsPerSession); };
+          }
+
+          // Sự kiện Thực hành / Chạm đúng / Thử thách (Nói xong trọn vẹn câu khen mới qua câu tiếp theo)
+          if (State.mode === 'practice' || (State.mode === 'play' && (State.game === 'tap' || State.game === 'challenge'))) {
+            const q = State.sessionQuestions[State.qIdx];
+            document.getElementById('btnReplayQ').onclick = () => VoiceEngine.speak(q.promptText);
+            document.querySelectorAll('.opt-btn').forEach(btn => {
+              btn.onclick = () => {
+                if (State.isSolved) return;
+                const key = btn.getAttribute('data-opt');
+                const opt = State.currentOptions.find(o => o.key === key);
+                State.selectedKey = key;
+                State.stats.attempts++;
+                if (key === q.targetKey) {
+                  clearHintTimer();
+                  State.isSolved = true;
+                  State.showHintGlow = false;
+                  State.stats.correct++;
+                  savePrefs();
+                  const praise = PRAISES[Math.floor(Math.random() * PRAISES.length)];
+                  State.feedback = praise;
+                  render();
+                  // Đọc hoàn chỉnh toàn bộ câu khen rồi mới tự động chuyển sang câu tiếp theo hoặc game kế tiếp
+                  VoiceEngine.speak(`${praise} Đúng là ${opt.label.toLowerCase()} rồi!`, () => {
+                    if (!State.isSolved || State.screen !== 'lesson') return;
+                    if (State.qIdx < State.sessionQuestions.length - 1) {
+                      State.qIdx++;
+                      prepareQuestion();
+                    } else {
+                      const title = State.mode === 'practice' ? `${pTitle} - Thực hành` : `${pTitle} - ${GAMES_LIST.find(g => g.id === State.game).title}`;
+                      advanceAfterGameFinished(State.game, title);
+                    }
+                  });
+                } else {
+                  savePrefs();
+                  const enc = ENCOURAGES[Math.floor(Math.random() * ENCOURAGES.length)];
+                  State.feedback = enc;
+                  render();
+                  VoiceEngine.speak(`${enc} ${q.hintText}`);
+                }
+              };
+            });
+            const btnNextQ = document.getElementById('btnNextQ');
+            if (btnNextQ) {
+              btnNextQ.onclick = () => {
+                VoiceEngine.stop();
+                if (State.qIdx < State.sessionQuestions.length - 1) {
+                  State.qIdx++;
+                  prepareQuestion();
+                } else {
+                  const title = State.mode === 'practice' ? `${pTitle} - Thực hành` : `${pTitle} - ${GAMES_LIST.find(g => g.id === State.game).title}`;
+                  advanceAfterGameFinished(State.game, title);
+                }
+              };
+            }
+          }
+
+          // Sự kiện Game 2: Kéo thả di chuyển thực thụ bằng ngón tay/chuột (Khen hết câu mới sang game 3)
+          if (State.mode === 'play' && State.game === 'drag') {
+            const q = State.sessionQuestions[0];
+            document.getElementById('btnReplayDrag').onclick = () => VoiceEngine.speak(State.feedback);
+
+            const verifyDrop = (srcKey, targetKey) => {
+              if (State.dragMatched.includes(targetKey)) return;
+              if (srcKey === targetKey) {
+                State.dragMatched.push(targetKey);
+                State.stats.correct++;
+                State.stats.attempts++;
+                savePrefs();
+                if (State.dragMatched.length === q.options.length) {
+                  State.feedback = 'Tuyệt vời! Bé đã đưa tất cả đồ vật về đúng chỗ rồi!';
+                  render();
+                  VoiceEngine.speak('Tuyệt vời! Bé đã đưa tất cả đồ vật về đúng chỗ rồi!', () => {
+                    advanceAfterGameFinished('drag', `${pTitle} - Kéo thả thông minh`);
+                  });
+                } else {
+                  State.feedback = 'Giỏi lắm! Đúng chỗ rồi, tiếp tục nào bé ơi!';
+                  render();
+                  VoiceEngine.speak('Giỏi lắm! Đúng chỗ rồi!');
+                }
+              } else {
+                State.stats.attempts++;
+                savePrefs();
+                State.feedback = 'Con thử lại nhé! Nhìn kỹ xem màu nào giống nhau nào!';
+                render();
+                VoiceEngine.speak('Con thử lại nhé!');
+              }
+            };
+
+            document.querySelectorAll('.drag-source').forEach(el => {
+              const srcKey = el.getAttribute('data-src');
+              el.onpointerdown = (e) => {
+                if (State.dragMatched.includes(srcKey)) return;
+                e.preventDefault();
+                el.setPointerCapture(e.pointerId);
+                const startX = e.clientX;
+                const startY = e.clientY;
+                el.style.position = 'relative';
+                el.style.zIndex = '50';
+                el.style.transition = 'none';
+                el.style.transform = 'scale(1.08)';
+                const opt = q.options.find(o => o.key === srcKey);
+                if (opt) VoiceEngine.speak(opt.label);
+
+                const onMove = (ev) => {
+                  const dx = ev.clientX - startX;
+                  const dy = ev.clientY - startY;
+                  el.style.transform = `translate(${dx}px, ${dy}px) scale(1.08)`;
+                  document.querySelectorAll('.drag-target').forEach(tEl => {
+                    const r = tEl.getBoundingClientRect();
+                    const inside = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+                    tEl.classList.toggle('ring-4', inside);
+                    tEl.classList.toggle('ring-[#1976D2]', inside);
+                    tEl.classList.toggle('scale-105', inside);
+                  });
+                };
+
+                const onUp = (ev) => {
+                  el.removeEventListener('pointermove', onMove);
+                  el.removeEventListener('pointerup', onUp);
+                  el.removeEventListener('pointercancel', onUp);
+                  let droppedTargetKey = null;
+                  document.querySelectorAll('.drag-target').forEach(tEl => {
+                    tEl.classList.remove('ring-4', 'ring-[#1976D2]', 'scale-105');
+                    const r = tEl.getBoundingClientRect();
+                    if (ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) {
+                      droppedTargetKey = tEl.getAttribute('data-target');
+                    }
+                  });
+                  el.style.transition = 'transform 0.25s ease';
+                  el.style.transform = 'translate(0px, 0px) scale(1)';
+                  el.style.zIndex = '';
+                  if (droppedTargetKey) {
+                    verifyDrop(srcKey, droppedTargetKey);
+                  }
+                };
+
+                el.addEventListener('pointermove', onMove);
+                el.addEventListener('pointerup', onUp);
+                el.addEventListener('pointercancel', onUp);
+              };
+            });
+          }
+
+          // Sự kiện Game 3: Tìm đôi bạn thân (Khen hết câu mới sang game 4)
+          if (State.mode === 'play' && State.game === 'match') {
+            document.querySelectorAll('.m-left').forEach(b => {
+              b.onclick = () => {
+                State.matchLeftSel = b.getAttribute('data-mleft');
+                const p = State.matchPairs.find(x => x.id === State.matchLeftSel);
+                if (p) VoiceEngine.speak(p.left.label);
+                render();
+              };
+            });
+            document.querySelectorAll('.m-right').forEach(b => {
+              b.onclick = () => {
+                const rid = b.getAttribute('data-mright');
+                if (!State.matchLeftSel || State.matchSolved.includes(rid)) return;
+                if (State.matchLeftSel === rid) {
+                  State.matchSolved.push(rid);
+                  State.matchLeftSel = null;
+                  render();
+                  if (State.matchSolved.length === State.matchPairs.length) {
+                    VoiceEngine.speak('Tuyệt vời! Bé đã tìm đúng tất cả các đôi bạn thân rồi!', () => {
+                      advanceAfterGameFinished('match', `${pTitle} - Tìm đôi bạn thân`);
+                    });
+                  } else {
+                    VoiceEngine.speak('Đúng rồi! Giỏi lắm!');
+                  }
+                } else {
+                  VoiceEngine.speak('Con thử lại nhé! Hai thẻ này chưa giống nhau rồi!');
+                }
+              };
+            });
+          }
+
+          // Sự kiện Game 4: Đếm sao ngân hà (Khen hết câu mới sang game 5)
+          if (State.mode === 'play' && State.game === 'countStars') {
+            document.getElementById('btnReplayStar').onclick = () => VoiceEngine.speak('Bé hãy chạm vào từng ngôi sao để cùng đếm nhé!');
+            document.querySelectorAll('.star-tap').forEach(b => {
+              b.onclick = () => {
+                const idx = Number(b.getAttribute('data-sidx'));
+                if (State.starCounted.includes(idx)) return;
+                State.starCounted.push(idx);
+                render();
+                if (State.starCounted.length === State.starTarget) {
+                  VoiceEngine.speak(`${State.starCounted.length}! Có tất cả ${State.starTarget} ngôi sao! Giờ bé chọn số ${State.starTarget} bên dưới nhé!`);
+                } else {
+                  VoiceEngine.speak(`${State.starCounted.length}`);
+                }
+              };
+            });
+            document.querySelectorAll('.star-num').forEach(b => {
+              b.onclick = () => {
+                if (State.starSolved) return;
+                const num = Number(b.getAttribute('data-snum'));
+                if (num === State.starTarget) {
+                  State.starSolved = true;
+                  render();
+                  VoiceEngine.speak(`Giỏi lắm! Đúng là số ${State.starTarget} rồi!`, () => {
+                    advanceAfterGameFinished('countStars', `${pTitle} - Đếm sao ngân hà`);
+                  });
+                } else {
+                  VoiceEngine.speak('Con thử lại nhé! Mình cùng đếm lại số ngôi sao trên bầu trời nào!');
+                }
+              };
+            });
+          }
+
+          // Sự kiện Game 5: Phân loại tài giỏi (Khen hết câu mới sang game 6)
+          if (State.mode === 'play' && State.game === 'sort') {
+            document.querySelectorAll('.sort-item').forEach(b => {
+              b.onclick = () => {
+                State.sortActiveKey = b.getAttribute('data-sitem');
+                const it = State.sortItems.find(x => x.key === State.sortActiveKey);
+                if (it) VoiceEngine.speak(it.label);
+                render();
+              };
+            });
+            document.querySelectorAll('.sort-basket').forEach(b => {
+              b.onclick = () => {
+                const bid = b.getAttribute('data-sbasket');
+                const cur = State.sortItems.find(x => x.key === State.sortActiveKey);
+                if (!cur) return;
+                if (cur.groupId === bid) {
+                  State.sortDone.push(cur.key);
+                  State.sortActiveKey = null;
+                  render();
+                  if (State.sortDone.length === State.sortItems.length) {
+                    VoiceEngine.speak('Tuyệt vời! Bé đã phân loại đúng tất cả đồ vật vào giỏ rồi!', () => {
+                      advanceAfterGameFinished('sort', `${pTitle} - Phân loại tài giỏi`);
+                    });
+                  } else {
+                    VoiceEngine.speak('Giỏi lắm! Đúng giỏ rồi!');
+                  }
+                } else {
+                  VoiceEngine.speak('Con thử lại nhé! Nhìn kỹ xem đồ vật này cùng màu với giỏ nào!');
+                }
+              };
+            });
+          }
+          return;
+        }
+
+        // ---------------- 5. MÀN HÌNH HOÀN THÀNH ----------------
+        if (State.screen === 'complete') {
+          root.innerHTML = `
+            <div class="flex-1 bg-[#F8F4EC] flex flex-col items-center justify-center p-6 text-center">
+              <div class="max-w-xl w-full bg-white rounded-3xl p-8 sm:p-10 shadow-xl border-4 border-[#F8D375]">
+                <div class="flex justify-center mb-4 animate-float">${renderBeSao('happy', 136)}</div>
+                <div class="text-5xl mb-3">⭐⭐⭐</div>
+                <h2 class="text-3xl sm:text-4xl font-black text-[#202E59] mb-2">Hoan hô phi hành gia nhí!</h2>
+                <p class="text-lg sm:text-xl font-bold text-slate-600 mb-8">Bé đã hoàn thành xuất sắc: <span class="text-[#6C6AA7]">${State.lastCompletedTitle}</span></p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <button id="btnPlayAgain" class="min-h-[72px] rounded-2xl bg-[#F8D375] text-[#202E59] font-black text-xl shadow active:scale-95">🔄 Chơi lại</button>
+                  <button id="btnGoMap" class="min-h-[72px] rounded-2xl bg-[#202E59] text-white font-black text-xl shadow active:scale-95">🌌 Về Ngân hà</button>
+                </div>
+              </div>
+            </div>`;
+          document.getElementById('btnPlayAgain').onclick = () => {
+            State.screen = 'lesson';
+            if (State.mode === 'play') startGame('tap');
+            else startPractice(State.questionsPerSession);
+          };
+          document.getElementById('btnGoMap').onclick = () => {
+            VoiceEngine.speak('Mình cùng quay về bản đồ ngân hà chọn hành tinh khác nhé!');
+            State.screen = 'map';
+            render();
+          };
+          return;
+        }
+
+        // ---------------- 6. GÓC GIÁO VIÊN ----------------
+        if (State.screen === 'teacher') {
+          root.innerHTML = `
+            <div class="flex-1 bg-slate-50 text-slate-800 flex flex-col">
+              <header class="bg-white border-b border-slate-200 px-4 sm:px-8 py-4">
+                <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <span class="text-xs font-extrabold uppercase text-[#6C6AA7]">Không gian quản lý sư phạm</span>
+                    <h1 class="text-xl sm:text-2xl font-black text-[#202E59]">GÓC GIÁO VIÊN – BÉ KHÁM PHÁ NGÂN HÀ</h1>
+                  </div>
+                  <button id="btnExitTeacher" class="min-h-[52px] px-5 rounded-xl bg-[#202E59] text-white font-bold">⬅ Quay lại Bé học</button>
+                </div>
+              </header>
+              <main class="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-8 space-y-6">
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                  <h2 class="text-lg font-black text-[#202E59]">1. Cấu hình Chương trình & Giọng đọc miền Nam</h2>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <label class="flex items-center justify-between p-4 rounded-xl bg-slate-50 border">
+                      <span class="font-bold">Bật nội dung mở rộng theo khả năng</span>
+                      <input id="chkExt" type="checkbox" ${State.enableExtended ? 'checked' : ''} class="w-6 h-6 accent-[#202E59]"/>
+                    </label>
+                    <label class="flex items-center justify-between p-4 rounded-xl bg-slate-50 border">
+                      <span class="font-bold">Mở Hành tinh Khối 3D cho mọi độ tuổi</span>
+                      <input id="chkSolids" type="checkbox" ${State.enableSolidsForAll ? 'checked' : ''} class="w-6 h-6 accent-[#202E59]"/>
+                    </label>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-4 pt-2">
+                    <button id="btnTestVoice" class="px-5 py-3 rounded-xl bg-[#F8D375] text-[#202E59] font-extrabold">🔊 Nghe thử giọng đọc miền Nam</button>
+                    <span class="text-sm font-bold text-slate-600">Số lượt hoàn thành: ${State.stats.sessions} | Tỷ lệ đúng: ${State.stats.attempts ? Math.round((State.stats.correct / State.stats.attempts) * 100) : 0}%</span>
+                  </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-2 text-sm">
+                  <h2 class="text-lg font-black text-[#202E59]">2. Thông tin Tác giả & Đơn vị</h2>
+                  <p><strong>Ứng dụng:</strong> BÉ KHÁM PHÁ NGÂN HÀ (Vũ trụ sắc màu – Hình dạng – Con số – Hình khối)</p>
+                  <p><strong>Giáo viên thực hiện:</strong> Cô giáo Lê Chinh Nhân – Trường Mầm non Giang Thành, Xã Giang Thành, Tỉnh An Giang</p>
+                  <p><strong>Email liên hệ:</strong> lechinhnhanhnan@gmail.com</p>
+                </div>
+              </main>
+            </div>`;
+          document.getElementById('btnExitTeacher').onclick = () => { State.screen = 'map'; render(); };
+          document.getElementById('chkExt').onchange = (e) => { State.enableExtended = e.target.checked; savePrefs(); };
+          document.getElementById('chkSolids').onchange = (e) => { State.enableSolidsForAll = e.target.checked; savePrefs(); };
+          document.getElementById('btnTestVoice').onclick = () => VoiceEngine.speak('Xin chào cô giáo Lê Chinh Nhân và các bé trường Mầm non Giang Thành! Giọng đọc tiếng Việt miền Nam đang hoạt động rất rõ ràng ạ!');
+        }
+      }
+
+      render();
+    })();
+  </script>
+</body>
+</html>
